@@ -26,15 +26,16 @@ package com.jamfsoftware.jss.healthcheck.ui;
  * #L%
  */
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * HealthReportHeadless.java, Written January 2016, Jacob Schultz
@@ -44,287 +45,290 @@ import java.util.Scanner;
  */
 
 public class HealthReportHeadless {
-
-    //Class level JSON Objects for the three main sections.
-    private JsonObject healthcheck;
-    private JsonObject system;
-    private JsonObject data;
-
-    //Default constructor that loads the JSON objects from the string.
-    public HealthReportHeadless(String JSON){
-        JsonElement report = null;
-        try {
-            report = new JsonParser().parse(JSON);
-        } catch (Exception e){
-            System.out.println("Unable to parse JSON. Outputting generated JSON string for debugging:\n");
-            System.out.println(JSON.replace("\n",""));
-            System.exit(0);
-        }
-
-        this.healthcheck = ((JsonObject) report).get("healthcheck").getAsJsonObject();
-        this.system = ((JsonObject) report).get("system").getAsJsonObject();
-        this.data = ((JsonObject) report).get("checkdata").getAsJsonObject();
-    }
-
-    //This calls the method to parse the JSON report, and then prints it. It then prompts to write to a file.
-    public void printReport() throws IOException{
-        String report = getString();
-        System.out.println(report);
-        shouldWriteToFile(report);
-    }
-
-    public String getReportString(){
-        return getString();
-    }
-
-    /**
-     * This method generates strings for group information.
-     */
-    private void printGroupInformation(String output, String[][] array){
-        if (array.length > 0){
-            for (int i = 0; i < array.length; i++){
-                output += "\n  Group: " + array[i][0] + " Nested Groups: " + array[i][1] + " Criteria Count: " + array[i][2];
-            }
-        }
-    }
-
-    /**
-     * Parses data from the JSON, checks for warnings, and builds an output report
-     * @return The Health Report text as a string.
-     */
-    private String getString(){
-        int output_count = 0;
-        String output = "";
-        SimpleDateFormat df = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
-        Date dateobj = new Date();
-        //Add some header information.
-        output += ("JSS Health Check Report Performed on " + df.format(dateobj));
-        output += ("\nJSS URL: " + extractData(healthcheck, "jss_url"));
-        output += ("\nTotal Computers: " + extractData(healthcheck, "totalcomputers"));
-        output += ("\nTotal Mobile Devices: " + extractData(healthcheck, "totalmobile"));
-        output += ("\nTotal Users: " + extractData(healthcheck, "totalusers"));
-
-        //Print System Info
-        output += ("\nSystem Information: ");
-        output += ("\n  Server OS: " + extractData(system,"os"));
-        output += ("\n  Java Vendor: " + extractData(system,"javavendor"));
-        output += ("\n  Java Version: " + extractData(system,"javaversion"));
-        output += ("\n  Is Clustered?: " + extractData(system,"clustering"));
-        output += ("\n  Web App Directory: " + extractData(system,"webapp_dir"));
-        output += ("\n  SSL Cert Issuer: " + extractData(data,"tomcat","ssl_cert_issuer"));
-        output += ("\n  SSL Cert Expires: " + extractData(data,"tomcat","cert_expires"));
-        output += ("\n  MDM Push Cert Expires: " + extractData(data,"push_cert_expirations","mdm_push_cert") );
-        output += ("\n  Push Proxy Expires: " + extractData(data,"push_cert_expirations","push_proxy"));
-        output += ("\n  Change Management Enabled?: " + extractData(data,"changemanagment","isusinglogfile"));
-        output += ("\n  Log File Path: " + extractData(data,"changemanagment","logpath"));
-        if (extractData(system,"javaversion").contains("1.6")){
-            output += ("\n!!!Java 6 is no longer supported.");
-            output_count++;
-        }
-        //output += ("\n  Server Memory: " + extractData(system,"memory"));
-        //output += ("\n  Tomcat Version: " + extractData(system,"tomcatversion"));
-
-        String[][] sql_tables = extractArrayData(system,"largeSQLtables","table_name","table_size");
-        if (sql_tables.length > 0 ){
-            output += ("\n  Top Ten Largest SQL tables: (Over 1GB should be investigated)");
-            for (int i = 0; i < sql_tables.length; i++){
-                output += ("\n    Table Name:  " + sql_tables[i][0] + " Size: " + sql_tables[i][1]);
-            }
-
-        }
-
-        try {
-            if (Integer.parseInt(extractData(data,"device_row_counts","computers").trim()) != Integer.parseInt(extractData(data,"device_row_counts","computers_denormalized").trim())){
-                output += ("\n!!!The tool has detected a mismatch in the count of the computers and computers_denormalized tables in your JSS datbase. This can cause performance issues if left unchecked.");
-            }
-            if (Integer.parseInt(extractData(data,"device_row_counts","mobile_devices").trim()) != Integer.parseInt(extractData(data,"device_row_counts","mobile_devices_denormalized").trim())){
-                output += ("\n!!!The tool has detected a mismatch in the count of the mobile_devices and mobile_devices_denormalized tables in your JSS datbase. This can cause performance issues if left unchecked.");
-            }
-        } catch (Exception e){
-            output += ("\nUnable to parse device row counts.");
-        }
-
-        //Print the rest of the check data
-        output += ("\nGeneral Information: ");
-
-        int password_strength = 0;
-        if (extractData(data,"password_strength","uppercase?").contains("true")){
-            password_strength++;
-        }
-        if (extractData(data,"password_strength","lowercase?").contains("true")){
-            password_strength++;
-        }
-        if (extractData(data,"password_strength","number?").contains("true")){
-            password_strength++;
-        }
-        if (extractData(data,"password_strength","spec_chars?").contains("true")){
-            password_strength++;
-        }
-        String password_strength_desc = "";
-        if (password_strength == 4){
-            password_strength_desc = "Excellent";
-        } else if (password_strength == 3 || password_strength == 2){
-            password_strength_desc = "Good";
-        } else if (password_strength == 1){
-            password_strength_desc = "Poor";
-        } else {
-            password_strength_desc = "Needs Updating";
-        }
-
-        output += ("\n  Login Password Strength: " + password_strength_desc);
-        if (password_strength < 3){
-            output += ("\n!!The JSS Login Password has weak requirements, consider updating.");
-        }
-
-        output += ("\n  Activation Code: " + extractData(data,"activationcode","code"));
-        output += ("\n  Computer Check In: " + extractData(data,"computercheckin","frequency"));
-        output += ("\n  GSX is: " + extractData(data,"gsxconnection", "status"));
-        output += ("\n  Managed Preference Profiles " + extractData(data,"managedpreferenceprofiles","status"));
-        if (extractData(data,"managedpreferenceprofiles","status").contains("enabled")){
-            output += ("\n!!!Preference Profiles are deprecated by Apple. Consider using Configuration Profiles.");
-            output_count++;
-        }
-        output += ("\n  Computer Extension Attributes: " + extractData(data,"computerextensionattributes","count"));
-        output += ("\n  Mobile Extension Attributes: " + extractData(data,"mobiledeviceextensionattributes","count"));
-        output += ("\n  !Attempt to limit the amount of Extension Attributes used, they must calculate at every inventory update.");
-
-        output += ("\n  Log In/Out Hooks Enabled: " + extractData(data,"loginlogouthooks","is_configured"));
-        if (extractData(data,"loginlogouthooks","is_configured").contains("false")){
-            output += ("\n!!Login/Logout hooks are not enabled.");
-        }
-
-        output += ("\n  Log Flushing Time: " + extractData(data,"logflushing","log_flush_time"));
-
-        output += ("\n  Computer Configurations: " + extractData(data,"computerconfigurations","count"));
-
-        output += ("\nVPP Accounts: ");
-        String[][] vpp_accounts = extractArrayData(data,"vppaccounts","name","days_until_expire");
-        if (vpp_accounts.length > 0){
-            for (int i = 0; i < vpp_accounts.length; i++){
-                output += ("\n  Account Name: " + vpp_accounts[i][0] + " Expires in: " + vpp_accounts[i][1] + " Days.");
-            }
-        }
-
-        //Print general info
-        output += ("\nNetwork Services Information: ");
-        output += ("\n  SMTP Server: " + extractData(data,"smtpserver","server") + " Email: " + extractData(data,"smtpserver","sender_email"));
-        String[][] ldap_servers = extractArrayData(data,"ldapservers","name","type","address");
-        for (int i = 0; i < ldap_servers.length; i++){
-            output += ("\n  LDAP Server: " + ldap_servers[i][0] + " ("+ ldap_servers[i][1] + ") Address: " + ldap_servers[i][2]);
-        }
-        String[][] printers = extractArrayData(data,"printer_warnings","model");
-        if (printers.length > 0){
-            output_count++;
-            output += ("\n !!The JSS contains one or more Xerox printers. They often have large driver packages. Ensure the MySQL max packet size is configured to allow this.");
-        }
-
-        if ((extractData(system, "mysql_version").contains("5.6.16") || extractData(system, "mysql_version").contains("5.6.20")) && (extractData(system,"os").contains("OS X") || extractData(system,"os").contains("Mac") || extractData(system,"os").contains("OSX"))){
-            output += ("\n!!! The tool has detected that the server is running on a version of MySQL and OSX that have known performance issues. See this defect: http://bugs.mysql.com/bug.php?id=71960.");
-        }
-
-        String[][] computer_groups = extractArrayData(data,"computergroups","name","nested_groups_count","criteria_count");
-        String[][] mobile_groups = extractArrayData(data,"mobiledevicegroups","name","nested_groups_count","criteria_count");
-        String[][] user_groups = extractArrayData(data,"usergroups","name","nested_groups_count","criteria_count");
-        if (computer_groups.length > 0 || mobile_groups.length > 0 || user_groups.length > 0){
-            output += ("\nSmart Group Information: ");
-            output_count++;
-            output += ("\n!!!Smart groups with more than four criteria or nested smart groups are discouraged. These Smart Groups are listed below.");
-        }
-        printGroupInformation(output,computer_groups);
-        printGroupInformation(output,mobile_groups);
-        printGroupInformation(output,user_groups);
-
-        String[][] scripts = extractArrayData(data,"scripts_needing_update","name");
-        if (scripts.length > 0){
-            output += "\nScripts Needing Updates: ";
-            for (int i = 0; i < scripts.length; i++){
-                output += "\n  Name: " + scripts[i][0];
-                output_count++;
-            }
-            output += "\n!!!These scripts either reference the old binary location or use the 'rm-rf' (discouraged) command. They could also contain the 'jamf recon' command in the script. This can cause database bloat.";
-        }
-
-        String[][] policies = extractArrayData(data,"policies_with_issues","name","ongoing","checkin_trigger");
-        if (policies.length > 0){
-            output += "\nPotential issues with Policies:";
-            for (int i = 0; i < policies.length; i++){
-                output+= "\n  Policy: " + policies[i][0] + " Ongoing with Inventory Update: " + policies[i][1] + " Checkin Trigger: " + policies[i][2];
-            }
-            output_count++;
-            output += "\n!!!The above policies are triggered by a check in, contain an update inventory and are ongoing. This can cause network and database congestion.";
-        }
-
-        if (output_count > 6){
-            output += "\n\n!!!The health tool has detected a relatively large number of issues (6+) with your environment. Please consider implementing the suggested tweaks.";
-        } else if (output_count < 6 && output_count > 3){
-            output += "\n\n!!The health tool has detected just a few issues with your JSS (3-6), but it is in otherwise good health. Please consider implementing the suggested tweaks.";
-        } else {
-            output += "\n\n!The JSS is in excellent condition.";
-        }
-        return output;
-    }
-
-    /**
-     * This method writes a string to a text file. Used to write the health report as: 'user_specified_path/health_check_results.text'
-     * @param report string
-     * @throws IOException when the file can not be written
-     */
-    private void shouldWriteToFile(String report) throws IOException{
-       Scanner scanner = new Scanner(System.in);
-        System.out.println("\nIf you would like the results written to a file (recommended), type the full desired path (/Users/admin/Desktop), otherwise type 'n'");
-        String output_path = scanner.next();
-        if (output_path.equals("n")){
-            System.out.println("\nThanks for using the Health Check Tool.");
-        } else {
-            SimpleDateFormat df = new SimpleDateFormat("dd.MM.yy");
-            Date dateobj = new Date();
-            try {
-                PrintWriter out = new PrintWriter(output_path + "/health_check_results_"+df.format(dateobj)+".txt");
-                out.println(report);
-                out.close();
-            } catch (Exception e){
-                System.out.println("\nUnable to write to file, trying again.");
-                shouldWriteToFile(report);
-            }
-            System.out.println("\nResults written to file.");
-        }
-    }
-
-
-    //Two helper methods to extract data from JSON more simply.
-    public String extractData(JsonObject obj, String key){
-        if (obj.get(key) != null){
-            return obj.get(key).getAsString();
-        } else {
-            return "No Data Available";
-        }
-    }
-
-    public String extractData(JsonObject obj, String key, String key2){
-        if (obj.get(key).getAsJsonObject().get(key2) != null){
-            return obj.get(key).getAsJsonObject().get(key2).getAsString();
-        } else {
-            return "No Data Available";
-        }
-    }
-
-    /**
-     * This method parses JSON and extracts data into a 2D String Array
-     * Pass as many strings as should be included in the 2D array.
-     * @return an String[][] filled with content from the JSON.
-     */
-    public String[][] extractArrayData(JsonObject obj, String array_item, String... keys) {
-        JsonArray items = obj.get(array_item).getAsJsonArray();
-        String[][] listOfObjects = new String[items.size()][keys.length];
-
-        for(int i = 0; i < items.size(); i++) {
-            JsonObject data = items.get(i).getAsJsonObject();
-            for(int j = 0; j < keys.length; j++) {
-                listOfObjects[i][j] = data.get(keys[j]).toString();
-            }
-        }
-        return listOfObjects;
-    }
-
-
+	
+	//Class level JSON Objects for the three main sections.
+	private JsonObject healthcheck;
+	private JsonObject system;
+	private JsonObject data;
+	
+	//Default constructor that loads the JSON objects from the string.
+	public HealthReportHeadless(String JSON) {
+		JsonElement report = null;
+		try {
+			report = new JsonParser().parse(JSON);
+		} catch (Exception e) {
+			System.out.println("Unable to parse JSON. Outputting generated JSON string for debugging:\n");
+			System.out.println(JSON.replace("\n", ""));
+			System.exit(0);
+		}
+		
+		this.healthcheck = ((JsonObject) report).get("healthcheck").getAsJsonObject();
+		this.system = ((JsonObject) report).get("system").getAsJsonObject();
+		this.data = ((JsonObject) report).get("checkdata").getAsJsonObject();
+	}
+	
+	//This calls the method to parse the JSON report, and then prints it. It then prompts to write to a file.
+	public void printReport() throws IOException {
+		String report = getString();
+		System.out.println(report);
+		shouldWriteToFile(report);
+	}
+	
+	public String getReportString() {
+		return getString();
+	}
+	
+	/**
+	 * This method generates strings for group information.
+	 */
+	private void printGroupInformation(String output, String[][] array) {
+		if (array.length > 0) {
+			for (int i = 0; i < array.length; i++) {
+				output += "\n  Group: " + array[i][0] + " Nested Groups: " + array[i][1] + " Criteria Count: " + array[i][2];
+			}
+		}
+	}
+	
+	/**
+	 * Parses data from the JSON, checks for warnings, and builds an output report
+	 *
+	 * @return The Health Report text as a string.
+	 */
+	private String getString() {
+		int output_count = 0;
+		String output = "";
+		SimpleDateFormat df = new SimpleDateFormat("dd/MM/yy HH:mm:ss");
+		Date dateobj = new Date();
+		//Add some header information.
+		output += ("JSS Health Check Report Performed on " + df.format(dateobj));
+		output += ("\nJSS URL: " + extractData(healthcheck, "jss_url"));
+		output += ("\nTotal Computers: " + extractData(healthcheck, "totalcomputers"));
+		output += ("\nTotal Mobile Devices: " + extractData(healthcheck, "totalmobile"));
+		output += ("\nTotal Users: " + extractData(healthcheck, "totalusers"));
+		
+		//Print System Info
+		output += ("\nSystem Information: ");
+		output += ("\n  Server OS: " + extractData(system, "os"));
+		output += ("\n  Java Vendor: " + extractData(system, "javavendor"));
+		output += ("\n  Java Version: " + extractData(system, "javaversion"));
+		output += ("\n  Is Clustered?: " + extractData(system, "clustering"));
+		output += ("\n  Web App Directory: " + extractData(system, "webapp_dir"));
+		output += ("\n  SSL Cert Issuer: " + extractData(data, "tomcat", "ssl_cert_issuer"));
+		output += ("\n  SSL Cert Expires: " + extractData(data, "tomcat", "cert_expires"));
+		output += ("\n  MDM Push Cert Expires: " + extractData(data, "push_cert_expirations", "mdm_push_cert"));
+		output += ("\n  Push Proxy Expires: " + extractData(data, "push_cert_expirations", "push_proxy"));
+		output += ("\n  Change Management Enabled?: " + extractData(data, "changemanagment", "isusinglogfile"));
+		output += ("\n  Log File Path: " + extractData(data, "changemanagment", "logpath"));
+		if (extractData(system, "javaversion").contains("1.6")) {
+			output += ("\n!!!Java 6 is no longer supported.");
+			output_count++;
+		}
+		//output += ("\n  Server Memory: " + extractData(system,"memory"));
+		//output += ("\n  Tomcat Version: " + extractData(system,"tomcatversion"));
+		
+		String[][] sql_tables = extractArrayData(system, "largeSQLtables", "table_name", "table_size");
+		if (sql_tables.length > 0) {
+			output += ("\n  Top Ten Largest SQL tables: (Over 1GB should be investigated)");
+			for (int i = 0; i < sql_tables.length; i++) {
+				output += ("\n    Table Name:  " + sql_tables[i][0] + " Size: " + sql_tables[i][1]);
+			}
+			
+		}
+		
+		try {
+			if (Integer.parseInt(extractData(data, "device_row_counts", "computers").trim()) != Integer.parseInt(extractData(data, "device_row_counts", "computers_denormalized").trim())) {
+				output += ("\n!!!The tool has detected a mismatch in the count of the computers and computers_denormalized tables in your JSS datbase. This can cause performance issues if left unchecked.");
+			}
+			if (Integer.parseInt(extractData(data, "device_row_counts", "mobile_devices").trim()) != Integer.parseInt(extractData(data, "device_row_counts", "mobile_devices_denormalized").trim())) {
+				output += ("\n!!!The tool has detected a mismatch in the count of the mobile_devices and mobile_devices_denormalized tables in your JSS datbase. This can cause performance issues if left unchecked.");
+			}
+		} catch (Exception e) {
+			output += ("\nUnable to parse device row counts.");
+		}
+		
+		//Print the rest of the check data
+		output += ("\nGeneral Information: ");
+		
+		int password_strength = 0;
+		if (extractData(data, "password_strength", "uppercase?").contains("true")) {
+			password_strength++;
+		}
+		if (extractData(data, "password_strength", "lowercase?").contains("true")) {
+			password_strength++;
+		}
+		if (extractData(data, "password_strength", "number?").contains("true")) {
+			password_strength++;
+		}
+		if (extractData(data, "password_strength", "spec_chars?").contains("true")) {
+			password_strength++;
+		}
+		String password_strength_desc = "";
+		if (password_strength == 4) {
+			password_strength_desc = "Excellent";
+		} else if (password_strength == 3 || password_strength == 2) {
+			password_strength_desc = "Good";
+		} else if (password_strength == 1) {
+			password_strength_desc = "Poor";
+		} else {
+			password_strength_desc = "Needs Updating";
+		}
+		
+		output += ("\n  Login Password Strength: " + password_strength_desc);
+		if (password_strength < 3) {
+			output += ("\n!!The JSS Login Password has weak requirements, consider updating.");
+		}
+		
+		output += ("\n  Activation Code: " + extractData(data, "activationcode", "code"));
+		output += ("\n  Computer Check In: " + extractData(data, "computercheckin", "frequency"));
+		output += ("\n  GSX is: " + extractData(data, "gsxconnection", "status"));
+		output += ("\n  Managed Preference Profiles " + extractData(data, "managedpreferenceprofiles", "status"));
+		if (extractData(data, "managedpreferenceprofiles", "status").contains("enabled")) {
+			output += ("\n!!!Preference Profiles are deprecated by Apple. Consider using Configuration Profiles.");
+			output_count++;
+		}
+		output += ("\n  Computer Extension Attributes: " + extractData(data, "computerextensionattributes", "count"));
+		output += ("\n  Mobile Extension Attributes: " + extractData(data, "mobiledeviceextensionattributes", "count"));
+		output += ("\n  !Attempt to limit the amount of Extension Attributes used, they must calculate at every inventory update.");
+		
+		output += ("\n  Log In/Out Hooks Enabled: " + extractData(data, "loginlogouthooks", "is_configured"));
+		if (extractData(data, "loginlogouthooks", "is_configured").contains("false")) {
+			output += ("\n!!Login/Logout hooks are not enabled.");
+		}
+		
+		output += ("\n  Log Flushing Time: " + extractData(data, "logflushing", "log_flush_time"));
+		
+		output += ("\n  Computer Configurations: " + extractData(data, "computerconfigurations", "count"));
+		
+		output += ("\nVPP Accounts: ");
+		String[][] vpp_accounts = extractArrayData(data, "vppaccounts", "name", "days_until_expire");
+		if (vpp_accounts.length > 0) {
+			for (int i = 0; i < vpp_accounts.length; i++) {
+				output += ("\n  Account Name: " + vpp_accounts[i][0] + " Expires in: " + vpp_accounts[i][1] + " Days.");
+			}
+		}
+		
+		//Print general info
+		output += ("\nNetwork Services Information: ");
+		output += ("\n  SMTP Server: " + extractData(data, "smtpserver", "server") + " Email: " + extractData(data, "smtpserver", "sender_email"));
+		String[][] ldap_servers = extractArrayData(data, "ldapservers", "name", "type", "address");
+		for (int i = 0; i < ldap_servers.length; i++) {
+			output += ("\n  LDAP Server: " + ldap_servers[i][0] + " (" + ldap_servers[i][1] + ") Address: " + ldap_servers[i][2]);
+		}
+		String[][] printers = extractArrayData(data, "printer_warnings", "model");
+		if (printers.length > 0) {
+			output_count++;
+			output += ("\n !!The JSS contains one or more Xerox printers. They often have large driver packages. Ensure the MySQL max packet size is configured to allow this.");
+		}
+		
+		if ((extractData(system, "mysql_version").contains("5.6.16") || extractData(system, "mysql_version").contains("5.6.20")) && (extractData(system, "os").contains("OS X") || extractData(system, "os").contains("Mac") || extractData(system, "os").contains("OSX"))) {
+			output += ("\n!!! The tool has detected that the server is running on a version of MySQL and OSX that have known performance issues. See this defect: http://bugs.mysql.com/bug.php?id=71960.");
+		}
+		
+		String[][] computer_groups = extractArrayData(data, "computergroups", "name", "nested_groups_count", "criteria_count");
+		String[][] mobile_groups = extractArrayData(data, "mobiledevicegroups", "name", "nested_groups_count", "criteria_count");
+		String[][] user_groups = extractArrayData(data, "usergroups", "name", "nested_groups_count", "criteria_count");
+		if (computer_groups.length > 0 || mobile_groups.length > 0 || user_groups.length > 0) {
+			output += ("\nSmart Group Information: ");
+			output_count++;
+			output += ("\n!!!Smart groups with more than four criteria or nested smart groups are discouraged. These Smart Groups are listed below.");
+		}
+		printGroupInformation(output, computer_groups);
+		printGroupInformation(output, mobile_groups);
+		printGroupInformation(output, user_groups);
+		
+		String[][] scripts = extractArrayData(data, "scripts_needing_update", "name");
+		if (scripts.length > 0) {
+			output += "\nScripts Needing Updates: ";
+			for (int i = 0; i < scripts.length; i++) {
+				output += "\n  Name: " + scripts[i][0];
+				output_count++;
+			}
+			output += "\n!!!These scripts either reference the old binary location or use the 'rm-rf' (discouraged) command. They could also contain the 'jamf recon' command in the script. This can cause database bloat.";
+		}
+		
+		String[][] policies = extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger");
+		if (policies.length > 0) {
+			output += "\nPotential issues with Policies:";
+			for (int i = 0; i < policies.length; i++) {
+				output += "\n  Policy: " + policies[i][0] + " Ongoing with Inventory Update: " + policies[i][1] + " Checkin Trigger: " + policies[i][2];
+			}
+			output_count++;
+			output += "\n!!!The above policies are triggered by a check in, contain an update inventory and are ongoing. This can cause network and database congestion.";
+		}
+		
+		if (output_count > 6) {
+			output += "\n\n!!!The health tool has detected a relatively large number of issues (6+) with your environment. Please consider implementing the suggested tweaks.";
+		} else if (output_count < 6 && output_count > 3) {
+			output += "\n\n!!The health tool has detected just a few issues with your JSS (3-6), but it is in otherwise good health. Please consider implementing the suggested tweaks.";
+		} else {
+			output += "\n\n!The JSS is in excellent condition.";
+		}
+		return output;
+	}
+	
+	/**
+	 * This method writes a string to a text file. Used to write the health report as:
+	 * 'user_specified_path/health_check_results.text'
+	 *
+	 * @param report string
+	 *
+	 * @throws IOException when the file can not be written
+	 */
+	private void shouldWriteToFile(String report) throws IOException {
+		Scanner scanner = new Scanner(System.in);
+		System.out.println("\nIf you would like the results written to a file (recommended), type the full desired path (/Users/admin/Desktop), otherwise type 'n'");
+		String output_path = scanner.next();
+		if (output_path.equals("n")) {
+			System.out.println("\nThanks for using the Health Check Tool.");
+		} else {
+			SimpleDateFormat df = new SimpleDateFormat("dd.MM.yy");
+			Date dateobj = new Date();
+			try {
+				PrintWriter out = new PrintWriter(output_path + "/health_check_results_" + df.format(dateobj) + ".txt");
+				out.println(report);
+				out.close();
+			} catch (Exception e) {
+				System.out.println("\nUnable to write to file, trying again.");
+				shouldWriteToFile(report);
+			}
+			System.out.println("\nResults written to file.");
+		}
+	}
+	
+	//Two helper methods to extract data from JSON more simply.
+	public String extractData(JsonObject obj, String key) {
+		if (obj.get(key) != null) {
+			return obj.get(key).getAsString();
+		} else {
+			return "No Data Available";
+		}
+	}
+	
+	public String extractData(JsonObject obj, String key, String key2) {
+		if (obj.get(key).getAsJsonObject().get(key2) != null) {
+			return obj.get(key).getAsJsonObject().get(key2).getAsString();
+		} else {
+			return "No Data Available";
+		}
+	}
+	
+	/**
+	 * This method parses JSON and extracts data into a 2D String Array
+	 * Pass as many strings as should be included in the 2D array.
+	 *
+	 * @return an String[][] filled with content from the JSON.
+	 */
+	public String[][] extractArrayData(JsonObject obj, String array_item, String... keys) {
+		JsonArray items = obj.get(array_item).getAsJsonArray();
+		String[][] listOfObjects = new String[items.size()][keys.length];
+		
+		for (int i = 0; i < items.size(); i++) {
+			JsonObject data = items.get(i).getAsJsonObject();
+			for (int j = 0; j < keys.length; j++) {
+				listOfObjects[i][j] = data.get(keys[j]).toString();
+			}
+		}
+		return listOfObjects;
+	}
+	
 }

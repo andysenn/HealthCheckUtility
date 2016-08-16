@@ -198,15 +198,15 @@ public class ConfigurationController {
 	 * of the XML file has been modified.
 	 */
 	public void updateXMLValue(String item, String value) {
-		if (item.equals("jss_url")){
+		if (item.equals("jss_url")) {
 			this.root.getChildren().get(0).setText(value);
-		} else if (item.equals("jss_username")){
+		} else if (item.equals("jss_username")) {
 			this.root.getChildren().get(1).setText(value);
-		} else if (item.equals("jss_password")){
+		} else if (item.equals("jss_password")) {
 			this.root.getChildren().get(2).setText(value);
-		} else if (item.equals("smart_groups")){
+		} else if (item.equals("smart_groups")) {
 			this.root.getChildren().get(5).getChildren().get(1).setText(value);
-		} else if (item.equals("extension_attributes")){
+		} else if (item.equals("extension_attributes")) {
 			this.root.getChildren().get(5).getChildren().get(2).getChildren().get(0).setText(value);
 			this.root.getChildren().get(5).getChildren().get(2).getChildren().get(1).setText(value);
 		}

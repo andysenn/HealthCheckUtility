@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jamfsoftware.jss.healthcheck.TrustModifier;
-import com.jamfsoftware.jss.healthcheck.util.SSLUtilities;
 
 /*
 * HTTPController.java

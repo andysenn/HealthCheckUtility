@@ -64,13 +64,16 @@ public class HealthCheckUtility {
 	private static final Logger LOGGER = LoggerFactory.getLogger(HealthCheckUtility.class);
 	private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-mm-dd HH:mm");
 	private static final String LOG_FORMAT = "%s %d %d %d %d\n";
-	
+	private final String[] args;
 	//This preferences bundle stores the location of the configuration XML
 	private Preferences prefs = Preferences.userNodeForPackage(UserPrompt.class);
-	private final String[] args;
 	
 	public HealthCheckUtility(String... args) {
 		this.args = args;
+	}
+	
+	public static void main(String[] args) throws Exception {
+		new HealthCheckUtility(args).start();
 	}
 	
 	private void start() {
@@ -164,10 +167,6 @@ public class HealthCheckUtility {
 	
 	boolean isFlag(String arg) {
 		return Stream.of(args).anyMatch(arg::equals);
-	}
-	
-	public static void main(String[] args) throws Exception {
-		new HealthCheckUtility(args).start();
 	}
 	
 }

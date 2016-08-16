@@ -68,6 +68,7 @@
 					<inceptionYear>2002</inceptionYear>
 					<licenseName>mit</licenseName>
 					<encoding>UTF-8</encoding>
+					<outputDirectory>${project.basedir}</outputDirectory>
 					<roots>
 						<root>src/main/java</root>
 						<root>src/test/java</root>
@@ -89,9 +90,9 @@
 						<phase>process-sources</phase>
 					</execution>
 					<execution>
-						<id>aggregate-add-third-party</id>
+						<id>add-third-party</id>
 						<goals>
-							<goal>aggregate-add-third-party</goal>
+							<goal>add-third-party</goal>
 						</goals>
 						<phase>generate-resources</phase>
 					</execution>

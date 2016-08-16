@@ -75,15 +75,6 @@ public class DetectVM {
 		}
 	}
 	
-	/**
-	 * Method that returns private VM boolean.
-	 *
-	 * @return boolean of if it is a VM or Not
-	 */
-	public boolean getIsVM() {
-		return this.isVM;
-	}
-	
 	private static boolean getVMStatusLinux() {
 		String[] command = { "/bin/sh", "-c", "ls -l /dev/disk/by-id/" };
 		String value = executeCommand(command);
@@ -154,6 +145,15 @@ public class DetectVM {
 			e.printStackTrace();
 		}
 		return output;
+	}
+	
+	/**
+	 * Method that returns private VM boolean.
+	 *
+	 * @return boolean of if it is a VM or Not
+	 */
+	public boolean getIsVM() {
+		return this.isVM;
 	}
 }
 

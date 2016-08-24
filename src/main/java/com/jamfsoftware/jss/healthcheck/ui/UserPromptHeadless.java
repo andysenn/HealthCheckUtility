@@ -98,7 +98,7 @@ public class UserPromptHeadless {
 		}
 		
 		//Perform a new Health Check
-		HealthCheck newHealthCheck = new HealthCheck(true, jssURL, jssUsername, jssPassword);
+		HealthCheck newHealthCheck = new HealthCheck(jssURL, jssUsername, jssPassword, true);
 		
 		//Generate a new headless report
 		HealthReportHeadless report = new HealthReportHeadless(newHealthCheck.getJSONAsString());

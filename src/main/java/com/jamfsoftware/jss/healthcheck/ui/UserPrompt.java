@@ -240,7 +240,7 @@ public class UserPrompt extends JFrame {
 		jssPassword = password.getText();
 		
 		try {
-			HealthCheck healthCheck = new HealthCheck(jssURL, jssUsername, jssPassword);
+			HealthCheck healthCheck = new HealthCheck(jssURL, jssUsername, jssPassword, false);
 			LOGGER.info("Health Check Complete, Loading Summary..");
 			new HealthReportAWT(healthCheck.getJSONAsString());
 			LOGGER.info("Report loaded.");

@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.jdom2.Document;
@@ -109,7 +110,7 @@ public class HealthCheck {
 		getJSSHealthCheckPage();
 		
 		this.hosted = test.isHosted();
-		this.summary = new JSSSummary(getJSSSummary());
+		this.summary = new JSSSummary(getJSSSummary(test.getJSSVersion()));
 		this.numberOfComputers = getAPIObjectCount("computers");
 		this.numberOfMobileDevices = getAPIObjectCount("mobiledevices");
 		this.numberOfUsers = getAPIObjectCount("users");
@@ -158,12 +159,12 @@ public class HealthCheck {
 		system.addElement("clustering", this.summary.getIsClustered());
 		system.addElement("mysql_version", this.summary.getMySQLVersion().trim());
 		
-		Collection<String[]> large_tables = this.summary.getLargeMySQLTables();
+		Map<String, Double> large_tables = this.summary.getLargeMySQLTables();
 		JSONArray array = system.addArray("largeSQLtables");
-		for (String[] table : large_tables) {
-			array.addElement("table_name", table[0]);
-			array.addElement("table_size", table[1] + " MB");
-		}
+		large_tables.forEach((k, v) -> {
+			array.addElement("table_name", k);
+			array.addElement("table_size", v + " MB");
+		});
 		
 		system.addElement("database_size", this.summary.getDatabaseSize());
 		
@@ -184,10 +185,14 @@ public class HealthCheck {
 	 *
 	 * @return The entire JSS summary result from the post.
 	 */
-	private String getJSSSummary() {
+	private String getJSSSummary(double version) {
 		HTTPController api = new HTTPController(username, password);
 		try {
-			return api.doGet(url + "/summary.html?2=on&3=off&4=on&6=on&5=on&9=on&7=on&313=on&24=on&350=on&22=on&26=on&23=on&24=on&25=on&28=on&27=on&312=on&53=on&54=on&54=on&255=on&24=on&51=on&65=on&80=on&136=on&135=on&133=on&134=on&137=on&221=on&166=on&72=on&141=on&124=on&125=on&158=on&252=on&163=on&310=on&381=on&90=on&91=on&92=on&96=on&95=on&94=on&93=on&74=on&75=on&76=on&82=on&81=on&122=on&118=on&119=on&73=on&117=on&123=on&83=on&11=on&77=on&171=on&128=on&86=on&131=on&314=on&169=on&87=on&41=on&42=on&43=on&360=on&44=on&45=on&tableRowCounts=on&tableSize=on&Action=Create&username=" + username + "&password=" + password);
+			if (version >= 9.93) {
+				return api.doGet(url + "/summary.html?2=on&3=on&4=on&6=on&5=on&9=on&7=on&313=on&24=on&350=on&600=on&22=on&26=on&23=on&24=on&25=on&28=on&27=on&312=on&53=on&54=on&54=on&255=on&24=on&51=on&65=on&80=on&136=on&135=on&133=on&134=on&137=on&221=on&166=on&390=on&72=on&141=on&124=on&125=on&158=on&252=on&163=on&310=on&381=on&500=on&90=on&91=on&92=on&96=on&95=on&94=on&93=on&74=on&75=on&76=on&82=on&81=on&122=on&118=on&119=on&73=on&117=on&123=on&83=on&11=on&77=on&171=on&128=on&86=on&131=on&314=on&169=on&87=on&41=on&42=on&43=on&360=on&44=on&45=on&tableRowCounts=on&tableSize=on&action=Create&safari_autofill_target=&FIELD_JAMF_NATION_USERNAME=&fakeUsername=&fakePassword=&FIELD_JAMF_NATION_PASSWORD=&username=" + username + "&password=" + password);
+			} else {
+				return api.doGet(url + "/summary.html?2=on&3=off&4=on&6=on&5=on&9=on&7=on&313=on&24=on&350=on&22=on&26=on&23=on&24=on&25=on&28=on&27=on&312=on&53=on&54=on&54=on&255=on&24=on&51=on&65=on&80=on&136=on&135=on&133=on&134=on&137=on&221=on&166=on&72=on&141=on&124=on&125=on&158=on&252=on&163=on&310=on&381=on&90=on&91=on&92=on&96=on&95=on&94=on&93=on&74=on&75=on&76=on&82=on&81=on&122=on&118=on&119=on&73=on&117=on&123=on&83=on&11=on&77=on&171=on&128=on&86=on&131=on&314=on&169=on&87=on&41=on&42=on&43=on&360=on&44=on&45=on&tableRowCounts=on&tableSize=on&Action=Create&username=" + username + "&password=" + password);
+			}
 		} catch (Exception e) {
 			return null;
 		}

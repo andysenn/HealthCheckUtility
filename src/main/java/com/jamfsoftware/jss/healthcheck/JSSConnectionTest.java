@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jamfsoftware.jss.healthcheck.controller.HTTPController;
+import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
 /*
 * JSSConnectionTest.java - Written by Jacob Schultz 1/2016
@@ -69,14 +70,14 @@ public class JSSConnectionTest {
 		return false;
 	}
 	
-	//This method is a 99.9% way to check for a cloud JSS.
+	//This method is a 99.9% way to check for a hosted JSS.
 	//Hits the /jssuser object and then checks for "c" in the JSS Version
 	//This would indicate a cloud build.
-	public boolean isCloudJSS() {
+	public boolean isHosted() {
 		try {
 			String xml_as_string = api.doGet(url + "/JSSResource/jssuser");
 			SAXBuilder sb = new SAXBuilder();
-			Document doc = sb.build(new ByteArrayInputStream(xml_as_string.getBytes("UTF-8")));
+			Document doc = sb.build(new ByteArrayInputStream(xml_as_string.getBytes(StringConstants.DEFAULT_ENCODING)));
 			String result = doc.getRootElement().getChild("version").getValue();
 			
 			return result.contains("c");

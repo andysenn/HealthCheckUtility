@@ -70,7 +70,7 @@ v1.0-beta.3
 * Adds more error checking
 
 v1.0-beta.2
-* Added checks for mismatching dabatabase tables
+* Added checks for mismatching database tables
 * Added more script checks
 * Prompts user again when they select a directory that doesn't exist for test output
 * Updates wording and error messages in several spots

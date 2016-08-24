@@ -28,6 +28,8 @@ package com.jamfsoftware.jss.healthcheck.controller;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.net.URI;
+import java.util.Objects;
 import java.util.prefs.Preferences;
 
 import org.jdom2.Document;
@@ -39,72 +41,70 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.jamfsoftware.jss.healthcheck.ui.UserPrompt;
+import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
-/*
-* ConfigurationController.java - Written by Jacob Schultz 1/2016
-* This class handles loading the config XML and the values from it.
-* Reads the path from the location stored in the prefs.
-*/
+/**
+ * This class handles loading the config XML and the values from it.
+ * Reads the path from the location stored in the preferences.
+ *
+ * @author Jacob Schultz
+ * @since 1.0
+ */
 public class ConfigurationController {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationController.class);
 	
 	private String configurationPath;
-	private Preferences prefs = Preferences.userNodeForPackage(UserPrompt.class);
+	private Preferences preferences;
 	private Element root;
 	
 	/**
-	 * Default constructor that just sets the path
-	 */
-	public ConfigurationController() {
-		this.configurationPath = this.prefs.get("configurationPath", "Path to file '/Users/user/desktop/config.xml'");
-	}
-	
-	/**
-	 * Constructor that optionally loads the XML file.
+	 * Constructs a new {@link ConfigurationController} that optionally loads the XML configuration file
+	 *
+	 * @param shouldLoadXML Indicates whether the configuration file should be loaded into memory
 	 */
 	public ConfigurationController(boolean shouldLoadXML) {
-		if (shouldLoadXML) {
-			this.configurationPath = this.prefs.get("configurationPath", "Path to file '/Users/user/desktop/config.xml'");
-			if (isCustomConfigurationPath() && canGetFile()) {
-				try {
-					SAXBuilder builder = new SAXBuilder();
-					File xmlFile = new File(this.configurationPath);
-					Document document = builder.build(xmlFile);
-					this.root = document.getRootElement();
-				} catch (Exception e) {
-					LOGGER.error("", e);
-				}
+		this.preferences = Preferences.userNodeForPackage(UserPrompt.class);
+		this.configurationPath = this.preferences.get("configurationPath", StringConstants.DEFAULT_CONFIGURATION_PATH);
+		
+		if (shouldLoadXML && isCustomConfigurationPath() && canGetFile()) {
+			try {
+				SAXBuilder builder = new SAXBuilder();
+				File xmlFile = new File(this.configurationPath);
+				Document document = builder.build(xmlFile);
+				this.root = document.getRootElement();
+			} catch (Exception e) {
+				LOGGER.error("", e);
 			}
 		}
-	}
-	
-	private String getConfigurationPath() {
-		return this.prefs.get("configurationPath", "Path to file '/Users/user/desktop/config.xml'");
 	}
 	
 	/**
 	 * This method attempts to find the config XML in the same directory that the tool is
 	 * currently executing from. If it can find a config.xml file, it then verifies it is
 	 * in the format the tool is expecting. Returns false if can't be found or not properly formatted.
+	 *
+	 * @return {@code true} if the file was found; otherwise, {@code false}
 	 */
 	public boolean attemptAutoDiscover() {
 		try {
-			String current_path_full = new File(ConfigurationController.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).toString();
-			if (current_path_full.lastIndexOf("healthcheck.jar") == -1) {
-				System.out.println("Unable to auto discover healthcheck config.xml file. Prompting user.");
-				return false;
+			URI execURI = ConfigurationController.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+			File execFile = new File(execURI.getPath());
+			
+			String path = execFile.getPath() + "/config.xml";
+			if (canGetFile(path)) {
+				preferences.put("configurationPath", path);
+				return true;
 			}
 			
-			String base_path = current_path_full.substring(0, current_path_full.lastIndexOf("healthcheck.jar"));
-			String final_path = base_path + "config.xml";
-			if (canGetFile(final_path)) {
-				prefs.put("configurationPath", final_path);
+			path = execFile.getParentFile().getPath() + "/config.xml";
+			if (canGetFile(path)) {
+				preferences.put("configurationPath", path);
 				return true;
-			} else {
-				System.out.println("Unable to auto discover healthcheck config.xml file. Prompting user.");
-				return false;
 			}
+			
+			LOGGER.info("Unable to auto discover healthcheck config.xml file. Prompting user.");
+			return false;
 		} catch (Exception e) {
 			LOGGER.error("Exception during auto discovery", e);
 			return false;
@@ -113,30 +113,53 @@ public class ConfigurationController {
 	
 	/**
 	 * Checks to see if the config.xml is in the default location.
+	 *
+	 * @return {@code true} if the configuration path is set to the default value; otherwise, {@code false}
 	 */
 	private boolean isCustomConfigurationPath() {
-		return !this.configurationPath.equals("Path to file '/Users/user/desktop/config.xml'");
+		return !Objects.equals(configurationPath, StringConstants.DEFAULT_CONFIGURATION_PATH);
 	}
 	
 	/**
 	 * This method checks if the file can be read.
 	 * Just supplying any old XML file will cause this method to return false.
 	 * It checks it can read elements like the JSS_URL, it is important that the XML if formatted correctly.
+	 *
+	 * @return {@code true} if the configuration file was found and contained a 'jss_url' element; otherwise, {@code
+	 * false}
+	 *
+	 * @see #canGetFile(File)
 	 */
 	public boolean canGetFile() {
-		return canGetFile(new File(this.prefs.get("configurationPath", "Path to file '/Users/user/desktop/config.xml'")));
+		return canGetFile(new File(configurationPath));
 	}
 	
 	/**
 	 * This method checks if the file can be read.
 	 * Just supplying any old XML file will cause this method to return false.
 	 * It checks it can read elements like the JSS_URL, it is important that the XML if formatted correctly.
-	 * This method takes in a string path, instead of what is stored in the user pref.
+	 *
+	 * @param path The path to the XML configuration file
+	 *
+	 * @return {@code true} if the configuration file was found and contained a 'jss_url' element; otherwise, {@code
+	 * false}
+	 *
+	 * @see #canGetFile(File)
 	 */
 	public boolean canGetFile(String path) {
 		return canGetFile(new File(path));
 	}
 	
+	/**
+	 * This method checks if the file can be read.
+	 * Just supplying any old XML file will cause this method to return false.
+	 * It checks it can read elements like the JSS_URL, it is important that the XML if formatted correctly.
+	 *
+	 * @param file The XML configuration file
+	 *
+	 * @return {@code true} if the configuration file was found and contained a 'jss_url' element; otherwise, {@code
+	 * false}
+	 */
 	private boolean canGetFile(File file) {
 		if (file.exists()) {
 			SAXBuilder builder = new SAXBuilder();
@@ -144,6 +167,7 @@ public class ConfigurationController {
 				Document document = builder.build(file);
 				Element root = document.getRootElement();
 				root.getChild("jss_url").getValue();
+				
 				return true;
 			} catch (Exception e) {
 				LOGGER.error("", e);
@@ -157,33 +181,21 @@ public class ConfigurationController {
 	 * This method reads in a CSV path to keys and a CSV string of keys.
 	 * It loops down the path given, and then searches for all of the keys.
 	 *
-	 * @return string array of all of the found keys.
+	 * @param pathString A comma-delimited path of the XML element
+	 * @param keysString A comma-delimited list of attribute keys
+	 *
+	 * @return A String[] of values for all of the found keys
 	 */
-	public String[] getValue(String path_string, String keys_string) {
-		Element object = null;
-		//Make two arrays out of the path given and a final content array that will be filled.
-		String[] path = path_string.split(",");
-		String[] keys = keys_string.split(",");
+	public String[] getValue(String pathString, String keysString) {
+		String[] path = pathString.split(",");
+		String[] keys = keysString.split(",");
 		String[] content = new String[keys.length];
-		//If the path is not the root XML
-		if (path.length > 1) {
-			//Loop through the path
-			for (int i = 0; i < path.length; i++) {
-				//Get the first child from the root initialized by the constructor
-				if (i == 0) {
-					//Set object equal to the root.
-					object = this.root.getChild(path[i]);
-					//Its not the root, so use the object.
-				} else {
-					object = object.getChild(path[i]);
-				}
-			}
-			//If the path is only one in length then just get elements from the root
-		} else {
-			object = this.root;
+		
+		Element object = this.root;
+		for (String child : path) {
+			object = object.getChild(child);
 		}
 		
-		//Loop through the keys and fill the content array.
 		for (int i = 0; i < keys.length; i++) {
 			content[i] = object.getChild(keys[i]).getValue();
 		}
@@ -196,6 +208,9 @@ public class ConfigurationController {
 	 * Not all items are supported. If it can't find the XML file,
 	 * it will print the error message. Could cause errors if the structure
 	 * of the XML file has been modified.
+	 *
+	 * @param item The name of the XML element to set
+	 * @param value The value to which the XML element will be set
 	 */
 	public void updateXMLValue(String item, String value) {
 		if (item.equals("jss_url")) {
@@ -214,11 +229,10 @@ public class ConfigurationController {
 		try {
 			XMLOutputter o = new XMLOutputter();
 			o.setFormat(Format.getPrettyFormat());
-			o.output(this.root, new FileWriter(getConfigurationPath()));
+			o.output(this.root, new FileWriter(configurationPath));
 		} catch (Exception e) {
 			LOGGER.error("Unable to update XML file.", e);
 		}
-		
 	}
 	
 }

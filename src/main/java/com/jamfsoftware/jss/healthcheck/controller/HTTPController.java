@@ -27,12 +27,15 @@ package com.jamfsoftware.jss.healthcheck.controller;
  */
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
@@ -40,11 +43,12 @@ import org.slf4j.LoggerFactory;
 
 import com.jamfsoftware.jss.healthcheck.TrustModifier;
 
-/*
-* HTTPController.java
-* This class handles all of the HTTP Connections and API calls.
-*/
-
+/**
+ * This class handles all of the HTTP Connections and API calls.
+ *
+ * @author Jacob Schultz
+ * @since 1.0
+ */
 public class HTTPController {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(HTTPController.class);
@@ -53,56 +57,69 @@ public class HTTPController {
 	private String username;
 	private String password;
 	
+	/**
+	 * Constructs a new {@link ConfigurationController} that optionally loads the XML configuration file
+	 *
+	 * @param username The username to use when authenticating to the JSS
+	 * @param password The password to use when authenticating to the JSS
+	 */
 	public HTTPController(String username, String password) {
 		this.username = username;
 		this.password = password;
 	}
 	
-	public String doGet(String URL) throws Exception {
+	public String doGet(String url)
+			throws IOException, KeyManagementException, NoSuchAlgorithmException {
 		CookieHandler.setDefault(new CookieManager(null, CookiePolicy.ACCEPT_ALL));
-		URL obj = new URL(URL);
-		//Relax host checking for Self Signed Certs
-		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-		TrustModifier.relaxHostChecking(con);
-		//Setup the Connection.
-		con.setRequestMethod("GET");
-		con.setRequestProperty("User_Agent", USER_AGENT);
-		Base64 b = new Base64();
-		String encoding = b.encodeAsString((username + ":" + password).getBytes());
-		con.setRequestProperty("Authorization", "Basic " + encoding);
+		
+		HttpURLConnection con = getConnection(url);
 		
 		int responseCode = con.getResponseCode();
-		LOGGER.debug("Sending 'GET' request to URL : " + URL);
+		LOGGER.debug("Sending 'GET' request to URL : " + url);
 		LOGGER.debug("Response Code : " + responseCode);
 		
-		//Get the response
-		BufferedReader in = new BufferedReader(
-				new InputStreamReader(con.getInputStream()));
-		String inputLine;
-		StringBuilder response = new StringBuilder();
-		
-		while ((inputLine = in.readLine()) != null) {
-			response.append(inputLine);
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()))) {
+			StringBuilder response = new StringBuilder();
+			
+			String inputLine;
+			while ((inputLine = in.readLine()) != null) {
+				response.append(inputLine);
+			}
+			
+			return response.toString();
 		}
-		in.close();
-		
-		return response.toString();
 	}
 	
-	//Preforms an API GET to a URL and returns only the response code as an int.
-	public int returnGETResponseCode(String URL) throws Exception {
-		URL obj = new URL(URL);
+	/**
+	 * Performs an authenticated GET request to the specified URL and returns the status code.
+	 *
+	 * @param url The URL to request
+	 *
+	 * @return The status code of the response
+	 *
+	 * @throws IOException If an IOException occurs in the underlying connection
+	 * @throws KeyManagementException If a KeyManagementException is thrown while relaxing trust
+	 * @throws NoSuchAlgorithmException 
+	 */
+	public int returnGETResponseCode(String url)
+			throws IOException, KeyManagementException, NoSuchAlgorithmException {
+		return getConnection(url).getResponseCode();
+	}
+	
+	private HttpURLConnection getConnection(String urlString)
+			throws IOException, KeyManagementException, NoSuchAlgorithmException {
+		URL url = new URL(urlString);
 		
-		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-		TrustModifier.relaxHostChecking(con);
+		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+		TrustModifier.relaxHostChecking(connection);
 		
-		con.setRequestMethod("GET");
-		con.setRequestProperty("User_Agent", USER_AGENT);
+		connection.setRequestMethod("GET");
+		connection.setRequestProperty("User_Agent", USER_AGENT);
 		Base64 b = new Base64();
 		String encoding = b.encodeAsString((username + ":" + password).getBytes());
-		con.setRequestProperty("Authorization", "Basic " + encoding);
+		connection.setRequestProperty("Authorization", "Basic " + encoding);
 		
-		return con.getResponseCode();
+		return connection;
 	}
 	
 }

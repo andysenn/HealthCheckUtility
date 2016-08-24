@@ -51,6 +51,7 @@ import com.jamfsoftware.jss.healthcheck.ui.UserPrompt;
 import com.jamfsoftware.jss.healthcheck.ui.UserPromptHeadless;
 import com.jamfsoftware.jss.healthcheck.ui.component.MonitorGraph;
 import com.jamfsoftware.jss.healthcheck.util.EnvironmentUtil;
+import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
 /**
  * HealthCheckUtility.java - Written by Jacob Schultz 12/2015
@@ -65,8 +66,7 @@ public class HealthCheckUtility {
 	private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-mm-dd HH:mm");
 	private static final String LOG_FORMAT = "%s %d %d %d %d\n";
 	private final String[] args;
-	//This preferences bundle stores the location of the configuration XML
-	private Preferences prefs = Preferences.userNodeForPackage(UserPrompt.class);
+	private final Preferences prefs = Preferences.userNodeForPackage(UserPrompt.class);
 	
 	public HealthCheckUtility(String... args) {
 		this.args = args;
@@ -92,10 +92,10 @@ public class HealthCheckUtility {
 	
 	private void startMonitor() {
 		Scanner scanner = new Scanner(System.in);
-		ConfigurationController con = new ConfigurationController();
+		ConfigurationController con = new ConfigurationController(false);
 		
 		while (!con.canGetFile()) {
-			if (!(con.attemptAutoDiscover())) {
+			if (!con.attemptAutoDiscover()) {
 				System.out.println("Path to Config.xml not found. Please type the full path below or type 'exit' to close the program. ");
 				String path = scanner.next();
 				if (path.equals("exit")) {
@@ -106,15 +106,23 @@ public class HealthCheckUtility {
 			}
 		}
 		
-		String xmlPath = prefs.get("config_xml_path", "Path to file '/Users/user/desktop/config.xml'");
+		String xmlPath = prefs.get("config_xml_path", StringConstants.DEFAULT_CONFIGURATION_PATH);
 		SAXBuilder builder = new SAXBuilder();
 		File xmlFile = new File(xmlPath);
 		try {
 			Document document = builder.build(xmlFile);
 			Element root = document.getRootElement();
-			HealthCheck hc = new HealthCheck();
-			int mobile_device_length = hc.checkAPILength(root.getChild("jss_url").getValue(), root.getChild("jss_username").getValue(), root.getChild("jss_password").getValue(), "mobiledevicecommands");
-			int computer_length = hc.checkAPILength(root.getChild("jss_url").getValue(), root.getChild("jss_username").getValue(), root.getChild("jss_password").getValue(), "computercommands");
+			
+			
+			HealthCheck hc = new HealthCheck(
+					root.getChild("jss_url").getValue(),
+					root.getChild("jss_username").getValue(),
+					root.getChild("jss_password").getValue(),
+					true
+			);
+			
+			int mobile_device_length = hc.getAPIObjectCount("mobiledevicecommands");
+			int computer_length = hc.getAPIObjectCount("computercommands");
 			writeLogEntry(mobile_device_length, computer_length);
 		} catch (Exception e) {
 			LOGGER.error("Config XML file damaged. Unable to run monitor.", e);
@@ -125,7 +133,7 @@ public class HealthCheckUtility {
 		if (headless) {
 			new UserPromptHeadless();
 		} else {
-			ConfigurationController con = new ConfigurationController();
+			ConfigurationController con = new ConfigurationController(false);
 			while (!con.canGetFile() && !con.attemptAutoDiscover()) {
 				JFileChooser chooser = new JFileChooser();
 				chooser.setDialogTitle("Select Configuration XML File");

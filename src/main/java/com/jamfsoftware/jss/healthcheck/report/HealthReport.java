@@ -1,10 +1,10 @@
-package com.jamfsoftware.jss.healthcheck.ui;
+package com.jamfsoftware.jss.healthcheck.report;
 
 /*-
  * #%L
  * HealthCheckUtility
  * %%
- * Copyright (C) 2015 - 2016 JAMF Software, LLC
+ * Copyright (C) 2002 - 2016 JAMF Software, LLC
  * %%
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,6 @@ package com.jamfsoftware.jss.healthcheck.ui;
  */
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -46,61 +44,74 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.jamfsoftware.jss.healthcheck.report.impl.HealthReportHeadless;
+import com.jamfsoftware.jss.healthcheck.ui.UserPrompt;
 import com.jamfsoftware.jss.healthcheck.ui.generator.PanelGenerator;
 import com.jamfsoftware.jss.healthcheck.ui.generator.PanelIconGenerator;
-import com.jamfsoftware.jss.healthcheck.util.DetectVM;
 import com.jamfsoftware.jss.healthcheck.util.EnvironmentUtil;
 import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
-/**
- * HealthReport.java, Written December 2015, Jacob Schultz
- * Large, Messy class to generate a Health Report GUI.
- * This class reads from the Health Check JSON and generates JPanels.
- * JPanels are nested and configured to build a somewhat appealing interface.
- * TODO: Refactor panel generation methods for better code re-usability.
- */
-public class HealthReport extends JFrame {
+public abstract class HealthReport {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(HealthReport.class);
 	
-	//Class level variables that store which help links to show.
-	private String JSSURL = "";
-	private boolean showGroupsHelp = false;
-	private boolean showLargeDatabase = false;
-	private boolean showScalability = false;
-	private boolean showPolicies = false;
-	private boolean showExtensionAttributes = false;
-	private boolean showSystemRequirements = false;
-	private boolean showCheckinFreq = false;
-	private boolean showPrinters = false;
-	private boolean showScripts = false;
-	private boolean strongerPassword = false;
-	private boolean loginInOutHooks = false;
-	private boolean showChange = false;
-	private boolean isCloudJSS = false;
-	private boolean mobileDeviceTableCountMismatch = false;
-	private boolean computerDeviceTableCountMismatch = false;
-	private boolean mysql_osx_version_bug = false;
+	protected String jssUrl = "";
+	protected boolean showGroupsHelp = false;
+	protected boolean showLargeDatabase = false;
+	protected boolean showScalability = false;
+	protected boolean showPolicies = false;
+	protected boolean showExtensionAttributes = false;
+	protected boolean showSystemRequirements = false;
+	protected boolean showCheckinFreq = false;
+	protected boolean showPrinters = false;
+	protected boolean showScripts = false;
+	protected boolean strongerPassword = false;
+	protected boolean loginInOutHooks = false;
+	protected boolean showChange = false;
+	protected boolean isCloudJSS = false;
+	protected boolean mobileDeviceTableCountMismatch = false;
+	protected boolean computerDeviceTableCountMismatch = false;
+	protected boolean mysqlOSXVersionBug = false;
 	
-	/**
-	 * Creates a new Health Report JPanel window from the Health Check JSON string.
-	 * Will throw errors if the JSON is not formatted correctly.
-	 */
-	public HealthReport(final String JSON) throws Exception {
+	public HealthReport(String json) {
+		uiStuff(json);
+	}
+	
+	public void updatePanelGenVariables(PanelGenerator pGen) {
+		pGen.jssUrl = this.jssUrl;
+		pGen.showGroupsHelp = this.showGroupsHelp;
+		pGen.showLargeDatabase = this.showLargeDatabase;
+		pGen.showScalability = this.showScalability;
+		pGen.showPolicies = this.showPolicies;
+		pGen.showExtensionAttributes = this.showExtensionAttributes;
+		pGen.showSystemRequirements = this.showSystemRequirements;
+		pGen.showCheckinFreq = this.showCheckinFreq;
+		pGen.showPrinters = this.showPrinters;
+		pGen.showScripts = this.showScripts;
+		pGen.strongerPassword = this.strongerPassword;
+		pGen.loginInOutHooks = this.loginInOutHooks;
+		pGen.showChange = this.showChange;
+		pGen.isCloudJSS = this.isCloudJSS;
+		pGen.mobileDeviceTableCountMismatch = this.mobileDeviceTableCountMismatch;
+		pGen.computerDeviceTableCountMismatch = this.computerDeviceTableCountMismatch;
+		pGen.mysqlOSXVersionBug = this.mysqlOSXVersionBug;
+	}
+	
+	private void uiStuff(String json) {
 		LOGGER.debug("[DEBUG] - JSON String (Copy entire below line)");
-		LOGGER.debug(JSON.replace("\n", ""));
+		LOGGER.debug(json.replace("\n", ""));
 		LOGGER.debug("Attempting to parse Health Report JSON");
 		
-		JsonElement report = new JsonParser().parse(JSON);
+		JsonElement report = new JsonParser().parse(json);
 		JsonObject healthcheck = ((JsonObject) report).get("healthcheck").getAsJsonObject();
 		Boolean show_system_info = true;
-		JsonObject system = null;
+		JsonObject system;
 		//Check if the check JSON contains system information and show/hide panels accordingly later.
 		system = ((JsonObject) report).get("system").getAsJsonObject();
 		
 		final JsonObject data = ((JsonObject) report).get("checkdata").getAsJsonObject();
 		
-		this.JSSURL = extractData(healthcheck, "jss_url");
+		this.jssUrl = extractData(healthcheck, "jss_url");
 		
 		if (extractData(system, "iscloudjss").contains("true")) {
 			show_system_info = false;
@@ -205,7 +216,7 @@ public class HealthReport extends JFrame {
 		if (extractData(data, "password_strength", "spec_chars?").contains("true")) {
 			password_strenth++;
 		}
-		String password_strength_desc = "";
+		String password_strength_desc;
 		if (password_strenth == 4) {
 			password_strength_desc = "Excellent";
 		} else if (password_strenth == 3 || password_strenth == 2) {
@@ -235,7 +246,7 @@ public class HealthReport extends JFrame {
 		}
 		
 		if ((extractData(system, "mysql_version").contains("5.6.16") || extractData(system, "mysql_version").contains("5.6.20")) && (extractData(system, "os").contains("OS X") || extractData(system, "os").contains("Mac") || extractData(system, "os").contains("OSX"))) {
-			this.mysql_osx_version_bug = true;
+			this.mysqlOSXVersionBug = true;
 		}
 		
 		//Get all of the information for the JSS ENV and generate the panel.
@@ -266,7 +277,8 @@ public class HealthReport extends JFrame {
 		String[][] printers = extractArrayData(data, "printer_warnings", "model");
 		String[][] policies = extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger");
 		String[][] scripts = extractArrayData(data, "scripts_needing_update", "name");
-		String[][] certs = { { "SSL Cert Issuer", extractData(data, "tomcat", "ssl_cert_issuer") },
+		String[][] certs = {
+				{ "SSL Cert Issuer", extractData(data, "tomcat", "ssl_cert_issuer") },
 				{ "SLL Cert Expires", extractData(data, "tomcat", "cert_expires") },
 				{ "MDM Push Cert Expires", extractData(data, "push_cert_expirations", "mdm_push_cert") },
 				{ "Push Proxy Expires", extractData(data, "push_cert_expirations", "push_proxy") },
@@ -303,98 +315,80 @@ public class HealthReport extends JFrame {
 		
 		//View report action listner.
 		//Opens a window with the health report JSON listed
-		view_report_json.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JPanel middlePanel = new JPanel();
-				middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Health Report JSON"));
-				// create the middle panel components
-				JTextArea display = new JTextArea(16, 58);
-				display.setEditable(false);
-				//Make a new GSON object so the text can be Pretty Printed.
-				Gson gson = new GsonBuilder().setPrettyPrinting().create();
-				String pp_json = gson.toJson(JSON.trim());
-				display.append(JSON);
-				JScrollPane scroll = new JScrollPane(display);
-				scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-				//Add Textarea in to middle panel
-				middlePanel.add(scroll);
-				
-				JFrame frame = new JFrame();
-				frame.add(middlePanel);
-				frame.pack();
-				frame.setLocationRelativeTo(null);
-				frame.setVisible(true);
-			}
+		view_report_json.addActionListener(e -> {
+			JPanel middlePanel = new JPanel();
+			middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Health Report JSON"));
+			// create the middle panel components
+			JTextArea display = new JTextArea(16, 58);
+			display.setEditable(false);
+			//Make a new GSON object so the text can be Pretty Printed.
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			String pp_json = gson.toJson(json.trim());
+			display.append(json);
+			JScrollPane scroll = new JScrollPane(display);
+			scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+			//Add Textarea in to middle panel
+			middlePanel.add(scroll);
+			
+			JFrame frame13 = new JFrame();
+			frame13.add(middlePanel);
+			frame13.pack();
+			frame13.setLocationRelativeTo(null);
+			frame13.setVisible(true);
 		});
 		//Action listener for the Terms, About and Licence button.
 		//Opens a new window with the AS IS License, 3rd Party Libs used and a small about section
-		about_and_terms.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JPanel middlePanel = new JPanel();
-				middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "About, Licence and Terms"));
-				// create the middle panel components
-				JTextArea display = new JTextArea(16, 58);
-				display.setEditable(false);
-				display.append(StringConstants.ABOUT);
-				display.append("\n\nThird Party Libraries Used:");
-				display.append(" Apache Commons Codec, Google JSON (gson), Java X JSON, JDOM, JSON-Simple, MySQL-connector");
-				display.append(StringConstants.LICENSE);
-				JScrollPane scroll = new JScrollPane(display);
-				scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-				//Add Textarea in to middle panel
-				middlePanel.add(scroll);
-				
-				JFrame frame = new JFrame();
-				frame.add(middlePanel);
-				frame.pack();
-				frame.setLocationRelativeTo(null);
-				frame.setVisible(true);
-			}
+		about_and_terms.addActionListener(e -> {
+			JPanel middlePanel = new JPanel();
+			middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "About, Licence and Terms"));
+			// create the middle panel components
+			JTextArea display = new JTextArea(16, 58);
+			display.setEditable(false);
+			display.append(StringConstants.ABOUT);
+			display.append("\n\nThird Party Libraries Used:");
+			display.append(" Apache Commons Codec, Google JSON (gson), Java X JSON, JDOM, JSON-Simple, MySQL-connector");
+			display.append(StringConstants.LICENSE);
+			JScrollPane scroll = new JScrollPane(display);
+			scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+			//Add Textarea in to middle panel
+			middlePanel.add(scroll);
+			
+			JFrame frame12 = new JFrame();
+			frame12.add(middlePanel);
+			frame12.pack();
+			frame12.setLocationRelativeTo(null);
+			frame12.setVisible(true);
 		});
 		
 		//Listener for a button click to open a window containing the activation code.
-		view_activation_code.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JOptionPane.showMessageDialog(frame, extractData(data, "activationcode", "code") + "\nExpires: " + extractData(data, "activationcode", "expires"));
-			}
-		});
+		view_activation_code.addActionListener(e -> JOptionPane.showMessageDialog(frame, extractData(data, "activationcode", "code") + "\nExpires: " + extractData(data, "activationcode", "expires")));
 		
-		view_text_report.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				JPanel middlePanel = new JPanel();
-				middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Text Health Report"));
-				// create the middle panel components
-				JTextArea display = new JTextArea(16, 58);
-				display.setEditable(false);
-				//Make a new GSON object so the text can be Pretty Printed.
-				display.append(new HealthReportHeadless(JSON).getReportString());
-				JScrollPane scroll = new JScrollPane(display);
-				scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
-				//Add Textarea in to middle panel
-				middlePanel.add(scroll);
-				
-				JFrame frame = new JFrame();
-				frame.add(middlePanel);
-				frame.pack();
-				frame.setLocationRelativeTo(null);
-				frame.setVisible(true);
-			}
+		view_text_report.addActionListener(e -> {
+			JPanel middlePanel = new JPanel();
+			middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Text Health Report"));
+			// create the middle panel components
+			JTextArea display = new JTextArea(16, 58);
+			display.setEditable(false);
+			//Make a new GSON object so the text can be Pretty Printed.
+			display.append(new HealthReportHeadless(json).getReportString());
+			JScrollPane scroll = new JScrollPane(display);
+			scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+			//Add Textarea in to middle panel
+			middlePanel.add(scroll);
+			
+			JFrame frame1 = new JFrame();
+			frame1.add(middlePanel);
+			frame1.pack();
+			frame1.setLocationRelativeTo(null);
+			frame1.setVisible(true);
 		});
 		
 		//Listener for the Test Again button. Opens a new UserPrompt object and keeps the Health Report open in the background.
-		test_again.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				try {
-					new UserPrompt();
-				} catch (Exception ex) {
-					ex.printStackTrace();
-				}
-				
+		test_again.addActionListener(e -> {
+			try {
+				new UserPrompt();
+			} catch (Exception ex) {
+				ex.printStackTrace();
 			}
 		});
 		
@@ -403,13 +397,9 @@ public class HealthReport extends JFrame {
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		frame.setVisible(true);
 		
-		DetectVM vm_checker = new DetectVM();
-		if (EnvironmentUtil.isMac()) {
-			if (vm_checker.getIsVM()) {
-				JOptionPane.showMessageDialog(new JFrame(), "The tool has detected that it is running in a OSX Virtual Machine.\nThe opening of links is not supported on OSX VMs.\nPlease open the tool on a non-VM computer and run it again OR\nyou can also copy the JSON from the report to a non-VM OR view the text report.\nIf you are not running a VM, ignore this message.", "VM Detected", JOptionPane.ERROR_MESSAGE);
-			}
+		if (EnvironmentUtil.isMac() && EnvironmentUtil.isVM()) {
+			JOptionPane.showMessageDialog(new JFrame(), "The tool has detected that it is running in a OSX Virtual Machine.\nThe opening of links is not supported on OSX VMs.\nPlease open the tool on a non-VM computer and run it again OR\nyou can also copy the JSON from the report to a non-VM OR view the text report.\nIf you are not running a VM, ignore this message.", "VM Detected", JOptionPane.ERROR_MESSAGE);
 		}
-		
 	}
 	
 	/**
@@ -417,7 +407,7 @@ public class HealthReport extends JFrame {
 	 *
 	 * @return rounded double
 	 */
-	private double round(double value, int places) {
+	protected double round(double value, int places) {
 		if (places < 0)
 			throw new IllegalArgumentException();
 		long factor = (long) Math.pow(10, places);
@@ -475,26 +465,6 @@ public class HealthReport extends JFrame {
 		} else {
 			return "No Data Available";
 		}
-	}
-	
-	public void updatePanelGenVariables(PanelGenerator pGen) {
-		pGen.JSSURL = this.JSSURL;
-		pGen.showGroupsHelp = this.showGroupsHelp;
-		pGen.showLargeDatabase = this.showLargeDatabase;
-		pGen.showScalability = this.showScalability;
-		pGen.showPolicies = this.showPolicies;
-		pGen.showExtensionAttributes = this.showExtensionAttributes;
-		pGen.showSystemRequirements = this.showSystemRequirements;
-		pGen.showCheckinFreq = this.showCheckinFreq;
-		pGen.showPrinters = this.showPrinters;
-		pGen.showScripts = this.showScripts;
-		pGen.strongerPassword = this.strongerPassword;
-		pGen.loginInOutHooks = this.loginInOutHooks;
-		pGen.showChange = this.showChange;
-		pGen.isCloudJSS = this.isCloudJSS;
-		pGen.mobileDeviceTableCountMismatch = this.mobileDeviceTableCountMismatch;
-		pGen.computerDeviceTableCountMismatch = this.computerDeviceTableCountMismatch;
-		pGen.mysql_osx_version_bug = this.mysql_osx_version_bug;
 	}
 	
 }

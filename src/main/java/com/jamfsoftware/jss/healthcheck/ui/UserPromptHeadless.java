@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import com.jamfsoftware.jss.healthcheck.HealthCheck;
 import com.jamfsoftware.jss.healthcheck.JSSConnectionTest;
 import com.jamfsoftware.jss.healthcheck.controller.ConfigurationController;
+import com.jamfsoftware.jss.healthcheck.report.impl.HealthReportHeadless;
 
 /*
 * UserPromptHeadless.java - Written 1/2016 by Jacob Schultz
@@ -57,18 +58,16 @@ public class UserPromptHeadless {
 		Scanner scanner = new Scanner(System.in);
 		Console console = System.console();
 		//Create a new config controller to handle loading config.xml values.
-		ConfigurationController con = new ConfigurationController();
+		ConfigurationController con = new ConfigurationController(false);
 		//Loop to prompt the user for a valid config.xml file. If it is not found, loop back through.
-		while (!con.canGetFile()) {
-			if (!(con.attemptAutoDiscover())) {
-				System.out.println("Path to Config.xml not found. Please type the full path below or type 'exit' to close the program. ");
-				String path = scanner.next();
-				//If they type exit to grab the XML, exit.
-				if (path.equals("exit")) {
-					System.exit(0);
-				} else {
-					prefs.put("config_xml_path", path);
-				}
+		while (!con.canGetFile() && !con.attemptAutoDiscover()) {
+			System.out.println("Path to Config.xml not found. Please type the full path below or type 'exit' to close the program. ");
+			String path = scanner.next();
+			//If they type exit to grab the XML, exit.
+			if (path.equals("exit")) {
+				System.exit(0);
+			} else {
+				prefs.put("config_xml_path", path);
 			}
 		}
 		//Print a welcome message.
@@ -93,7 +92,7 @@ public class UserPromptHeadless {
 			}
 		}
 		
-		if (test.isCloudJSS()) {
+		if (test.isHosted()) {
 			System.out.println("The headless version of this tool is not intended to run against a cloud JSS.");
 			System.out.println("Please run the tool on Mac OSX or Windows to view a health report.");
 		}

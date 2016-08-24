@@ -1,10 +1,10 @@
-package com.jamfsoftware.jss.healthcheck.ui.component;
+package com.jamfsoftware.jss.healthcheck.ui.component.model;
 
 /*-
  * #%L
  * HealthCheckUtility
  * %%
- * Copyright (C) 2015 - 2016 JAMF Software, LLC
+ * Copyright (C) 2002 - 2016 JAMF Software, LLC
  * %%
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,53 +26,37 @@ package com.jamfsoftware.jss.healthcheck.ui.component;
  * #L%
  */
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * 
- * @author Jacob Schultz
- * @since 1.0
+ * @author Andy Senn
  */
-public class MonitorGraph {
+public class CSVElement {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(MonitorGraph.class);
+	private final String displayName;
+	private final String csvPaths;
+	private final String csvKeys;
 	
-	private String[][] LOG_DATA;
-	
-	public MonitorGraph(String logFilePath) {
-		parseLogData(logFilePath);
+	public CSVElement(String displayName, String csvPaths, String csvKeys) {
+		this.displayName = displayName;
+		this.csvPaths = csvPaths;
+		this.csvKeys = csvKeys;
 	}
 	
-	private void parseLogData(String logFilePath) {
-		try {
-			try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
-				List<String> lines = new ArrayList<>();
-				
-				String line;
-				while ((line = br.readLine()) != null) {
-					lines.add(line);
-				}
-				
-				this.LOG_DATA = new String[lines.size()][6];
-				for (int i = 0; i < lines.size(); i++) {
-					String[] data = lines.get(i).split(" ");
-					System.arraycopy(data, 0, this.LOG_DATA[i], 0, data.length);
-				}
-			}
-		} catch (Exception e) {
-			LOGGER.error("Unable to find log file.", e);
-		}
-		
+	public String getDisplayName() {
+		return displayName;
 	}
 	
-	public void showGraph() {
-		
+	public String getCSVPaths() {
+		return csvPaths;
+	}
+	
+	public String getCSVKeys() {
+		return csvKeys;
+	}
+	
+	@Override
+	public String toString() {
+		return getDisplayName();
 	}
 	
 }

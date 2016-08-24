@@ -1,10 +1,10 @@
-package com.jamfsoftware.jss.healthcheck.ui.component;
+package com.jamfsoftware.jss.healthcheck.util;
 
 /*-
  * #%L
  * HealthCheckUtility
  * %%
- * Copyright (C) 2015 - 2016 JAMF Software, LLC
+ * Copyright (C) 2002 - 2016 JAMF Software, LLC
  * %%
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,53 +26,32 @@ package com.jamfsoftware.jss.healthcheck.ui.component;
  * #L%
  */
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Calendar;
+import java.util.Date;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-/**
- * 
- * @author Jacob Schultz
- * @since 1.0
- */
-public class MonitorGraph {
+public final class DateUtil {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(MonitorGraph.class);
-	
-	private String[][] LOG_DATA;
-	
-	public MonitorGraph(String logFilePath) {
-		parseLogData(logFilePath);
+	private DateUtil() {
 	}
 	
-	private void parseLogData(String logFilePath) {
-		try {
-			try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
-				List<String> lines = new ArrayList<>();
-				
-				String line;
-				while ((line = br.readLine()) != null) {
-					lines.add(line);
-				}
-				
-				this.LOG_DATA = new String[lines.size()][6];
-				for (int i = 0; i < lines.size(); i++) {
-					String[] data = lines.get(i).split(" ");
-					System.arraycopy(data, 0, this.LOG_DATA[i], 0, data.length);
-				}
-			}
-		} catch (Exception e) {
-			LOGGER.error("Unable to find log file.", e);
+	public static long calculateDays(String startDate, String endDate) {
+		Date sDate = new Date(startDate);
+		Date eDate = new Date(endDate);
+		Calendar cal3 = Calendar.getInstance();
+		cal3.setTime(sDate);
+		Calendar cal4 = Calendar.getInstance();
+		cal4.setTime(eDate);
+		return daysBetween(cal3, cal4);
+	}
+	
+	public static long daysBetween(Calendar startDate, Calendar endDate) {
+		Calendar date = (Calendar) startDate.clone();
+		long daysBetween = 0;
+		while (date.before(endDate)) {
+			date.add(Calendar.DAY_OF_MONTH, 1);
+			daysBetween++;
 		}
-		
-	}
-	
-	public void showGraph() {
-		
+		return daysBetween;
 	}
 	
 }

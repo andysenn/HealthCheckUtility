@@ -34,10 +34,13 @@ import java.net.URI;
 import javax.swing.*;
 
 /**
- * @author ludovicianul, Modified by Jacob Schultz This class handles creating a clickable JLabel. If the param text
- *         conatians a URL, open in the browser, otherwise display a help message on click.
+ * This class handles creating a clickable JLabel. If the param text contains a URL, open in the browser, otherwise
+ * display a help message on click.
+ *
+ * @author ludovicianul
+ * @author Jacob Schultz
+ * @since 1.0
  */
-
 public class URLLabel extends JLabel {
 	
 	private final String url;

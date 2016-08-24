@@ -27,8 +27,6 @@ package com.jamfsoftware.jss.healthcheck.ui;
  */
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.util.prefs.Preferences;
 
 import javax.swing.*;
@@ -43,7 +41,10 @@ import org.slf4j.LoggerFactory;
 import com.jamfsoftware.jss.healthcheck.HealthCheck;
 import com.jamfsoftware.jss.healthcheck.JSSConnectionTest;
 import com.jamfsoftware.jss.healthcheck.controller.ConfigurationController;
+import com.jamfsoftware.jss.healthcheck.report.impl.HealthReportAWT;
+import com.jamfsoftware.jss.healthcheck.ui.component.model.CSVElement;
 import com.jamfsoftware.jss.healthcheck.util.EnvironmentUtil;
+import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
 //import com.apple.eawt.Application;
 
@@ -64,7 +65,7 @@ public class UserPrompt extends JFrame {
 	
 	//Default Constructor. Checks for the OS Version. If mac - add a menu bar
 	//Opens the User Prompt JPanel
-	public UserPrompt() throws Exception {
+	public UserPrompt() {
 		if (EnvironmentUtil.isMac()) {
 			//Add a menu bar, and set the icon on OSX.
 			//			Application.getApplication().setDockIconImage(new ImageIcon(this.getClass().getResource("/images/icon.png")).getImage());
@@ -96,7 +97,7 @@ public class UserPrompt extends JFrame {
 			quit.addActionListener(e -> System.exit(0));
 			setup_xml.addActionListener(e -> openOptions());
 			load_json_item.addActionListener(e -> loadJSON());
-			edit.addActionListener(e -> LoadXMLEditor());
+			edit.addActionListener(e -> loadXMLEditor());
 			load_links.addActionListener(e -> loadAllHelpLinks());
 			
 			//Set the Apple Menu bar to our JMenu
@@ -105,6 +106,7 @@ public class UserPrompt extends JFrame {
 		} else if (EnvironmentUtil.isWindows()) {
 			setIconImage(new ImageIcon(this.getClass().getResource("/images/icon.png")).getImage());
 		}
+		
 		//Create the Base Panel
 		final JFrame frame = new JFrame("JSS Health Check");
 		JPanel panel = new JPanel();
@@ -151,44 +153,41 @@ public class UserPrompt extends JFrame {
 			final JSSConnectionTest test = new JSSConnectionTest(url.getText(), username.getText(), password.getText());
 			if (test.canConnect()) {
 				//Check if it is a cloud JSS, if it is, don't preform system checks.
-				if (test.isCloudJSS()) {
+				if (test.isHosted()) {
 					mysql.setText("<html>Unable to perform system<br> checks on a hosted JSS.</html>");
 					mysql_username.setEnabled(false);
 					mysql_password.setEnabled(false);
 				}
 				//Start a new thread to handle updating the health check button.
-				Thread m = new Thread(new Runnable() {
-					@Override
-					public void run() {
-						begin_check.setText("Running API checks... Please wait");
-						//Tell them the tool is still working after 15 seconds
-						new java.util.Timer().schedule(
-								new java.util.TimerTask() {
-									@Override
-									public void run() {
-										begin_check.setText("Still working..");
-									}
-								},
-								15000
-						);
-						//Tell them it's still working again after 25 seconds
-						new java.util.Timer().schedule(
-								new java.util.TimerTask() {
-									@Override
-									public void run() {
-										begin_check.setText("Loading results..");
-									}
-								},
-								25000
-						);
-					}
+				Thread m = new Thread(() -> {
+					begin_check.setText("Running API checks... Please wait");
+					//Tell them the tool is still working after 15 seconds
+					new java.util.Timer().schedule(
+							new java.util.TimerTask() {
+								@Override
+								public void run() {
+									begin_check.setText("Still working..");
+								}
+							},
+							15000
+					);
+					//Tell them it's still working again after 25 seconds
+					new java.util.Timer().schedule(
+							new java.util.TimerTask() {
+								@Override
+								public void run() {
+									begin_check.setText("Loading results..");
+								}
+							},
+							25000
+					);
 				});
 				
 				//Start the thread and timers
 				m.start();
 				
 				//Start another new thread to start the Health Check.
-				Thread t = new Thread(() -> StartCheck(url, username, password, frame, begin_check));
+				Thread t = new Thread(() -> performHealthCheck(url, username, password, frame, begin_check));
 				t.start();
 			} else {
 				//Throw an error if a connection can not be made.
@@ -233,68 +232,67 @@ public class UserPrompt extends JFrame {
 	}
 	
 	//This method starts the health check. Gathers information from the text fields and creates a new HealthCheck Object
-	//If the Health Check object is created without errors, it then creates a new HealthReport object.
-	public void StartCheck(JTextField url, JTextField username, JTextField password, JFrame frame, JButton button) {
+	//If the Health Check object is created without errors, it then creates a new HealthReportAWT object.
+	private void performHealthCheck(JTextField url, JTextField username, JTextField password, JFrame frame, JButton button) {
 		jssURL = url.getText();
 		jssUsername = username.getText();
 		jssPassword = password.getText();
 		
 		try {
-			HealthCheck newHealthCheck = new HealthCheck(jssURL, jssUsername, jssPassword);
-			System.out.println("Health Check Complete, Loading Summary..");
-			new HealthReport(newHealthCheck.getJSONAsString());
-			System.out.println("Report loaded.");
+			HealthCheck healthCheck = new HealthCheck(jssURL, jssUsername, jssPassword);
+			LOGGER.info("Health Check Complete, Loading Summary..");
+			new HealthReportAWT(healthCheck.getJSONAsString());
+			LOGGER.info("Report loaded.");
 			frame.setVisible(false);
-			
-		} catch (Exception ex) {
-			JOptionPane.showMessageDialog(new JFrame(), "A fatal error has occurred. \n" + ex, "Fatal Error", JOptionPane.ERROR_MESSAGE);
-			ex.printStackTrace();
+		} catch (Exception e) {
+			LOGGER.error("", e);
+			JOptionPane.showMessageDialog(new JFrame(), "A fatal error has occurred. \n" + e, "Fatal Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(0);
 		}
 	}
 	
 	//This method opens the options menu. It allows the config.xml path to be set after opening the program.
-	public void openOptions() {
-		final JFrame frame = new JFrame("Health Check Options");
-		JPanel panel = new JPanel();
-		panel.add(new JLabel("Configuration XML path:"));
-		final JTextField config_xml_path = new JTextField();
+	private void openOptions() {
+		JPanel pnlRoot = new JPanel();
+		pnlRoot.add(new JLabel("Configuration XML path:"));
+		
+		JFrame frmOptions = new JFrame("Health Check Options");
+		JTextField txtConfigurationPath = new JTextField();
 		
 		//Load xml path from saved prefs.
-		String xml_path = this.prefs.get("config_xml_path", "Path to file '/Users/user/desktop/config.xml'");
-		config_xml_path.setText(xml_path);
+		String configurationPath = this.prefs.get("config_xml_path", StringConstants.DEFAULT_CONFIGURATION_PATH);
+		txtConfigurationPath.setText(configurationPath);
 		
-		panel.add(config_xml_path);
+		pnlRoot.add(txtConfigurationPath);
 		
-		JButton save_button = new JButton("Save Path");
-		panel.add(save_button);
-		panel.add(new JLabel(""));
-		JButton load_test_json = new JButton("Load Previous Test");
-		panel.add(load_test_json);
+		JButton btnSavePath = new JButton("Save Path");
+		pnlRoot.add(btnSavePath);
+		pnlRoot.add(new JLabel(""));
 		
-		frame.add(panel);
-		frame.setSize(530, 100);
-		frame.setLocationRelativeTo(null);
-		frame.setVisible(true);
+		JButton btnLoadPreviousTest = new JButton("Load Previous Test");
+		pnlRoot.add(btnLoadPreviousTest);
 		
-		//Listener for the Save Path button
-		//Checks that the path is valid before saving.
-		save_button.addActionListener(e -> {
-			ConfigurationController con = new ConfigurationController();
-			if (con.canGetFile(config_xml_path.getText())) {
-				prefs.put("config_xml_path", config_xml_path.getText());
+		frmOptions.add(pnlRoot);
+		frmOptions.setSize(530, 100);
+		frmOptions.setLocationRelativeTo(null);
+		frmOptions.setVisible(true);
+		
+		btnSavePath.addActionListener(e -> {
+			ConfigurationController con = new ConfigurationController(false);
+			if (con.canGetFile(txtConfigurationPath.getText())) {
+				prefs.put("config_xml_path", txtConfigurationPath.getText());
 			} else {
-				config_xml_path.setText(prefs.get("config_xml_path", "Path to file '/Users/user/desktop/config.xml'"));
-				JOptionPane.showMessageDialog(frame, "This is not a valid configuration XML file. \nNo changes have been made.", "XML Error", JOptionPane.ERROR_MESSAGE);
+				txtConfigurationPath.setText(prefs.get("config_xml_path", StringConstants.DEFAULT_CONFIGURATION_PATH));
+				JOptionPane.showMessageDialog(frmOptions, "This is not a valid configuration XML file. \nNo changes have been made.", "XML Error", JOptionPane.ERROR_MESSAGE);
 			}
 		});
 		
-		load_test_json.addActionListener(e -> loadJSON());
+		btnLoadPreviousTest.addActionListener(e -> loadJSON());
 	}
 	
 	//This method opens a JPanel to load previous test JSON into.
 	//If the JSON is valid, it will open a new health report window.
-	public void loadJSON() {
+	private void loadJSON() {
 		final JPanel middlePanel = new JPanel();
 		middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Load JSON from a previous test"));
 		// create the middle panel components
@@ -304,8 +302,9 @@ public class UserPrompt extends JFrame {
 		scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		//Add Textarea in to middle panel
 		middlePanel.add(scroll);
-		JButton load_report = new JButton("Open Health Report");
-		middlePanel.add(load_report);
+		JButton loadReport
+				= new JButton("Open Health Report");
+		middlePanel.add(loadReport);
 		
 		JFrame frame = new JFrame();
 		frame.add(middlePanel);
@@ -313,74 +312,33 @@ public class UserPrompt extends JFrame {
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 		
-		load_report.addActionListener(e -> {
+		loadReport.addActionListener(e -> {
 			try {
-				new HealthReport(display.getText());
+				new HealthReportAWT(display.getText());
 			} catch (Exception e1) {
-				e1.printStackTrace();
+				LOGGER.error("", e1);
 				JOptionPane.showMessageDialog(middlePanel, "The tool was unable to load the pasted JSON.\nIt may be incomplete or not formatted correctly.\nThe error the tool encountered:\n" + e1, "Error Loading JSON", JOptionPane.ERROR_MESSAGE);
 			}
 		});
 	}
 	
-	public void loadAllHelpLinks() {
-		final JPanel middlePanel = new JPanel();
+	private void loadAllHelpLinks() {
 		ConfigurationController config = new ConfigurationController(true);
-		middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "All available JSS Health Checks and Help Information"));
-		final JTextArea display = new JTextArea(16, 58);
+		
+		JTextArea display = new JTextArea(16, 58);
 		display.setEditable(false);
+		display.setText(String.format(
+				StringConstants.OPTIONS_TEXT,
+				config.getValue("configurations,smart_groups", "criteria_count")[0],
+				this.jssURL
+		));
+		
 		JScrollPane scroll = new JScrollPane(display);
 		scroll.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+		
+		JPanel middlePanel = new JPanel();
+		middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "All available JSS Health Checks and Help Information"));
 		middlePanel.add(scroll);
-		display.append("Issue: One or more of the smart groups has potential issues");
-		display.append("\nSmart Groups that contain more than " + config.getValue("configurations,smart_groups", "criteria_count")[0] + " can increase smart group calculation times.\nAttempt to limit the number of criteria, especially when using the group for scoping.\nSmart Groups with other Smart Groups as criteria are also discouraged.\nPlease consider revising these groups.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: The JSS database is larger than expected");
-		display.append("\nLink to Scalability Article here");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: One or more recommended system requirement has not been met");
-		display.append("\nhttp://resources.jamfsoftware.com/documents/products/Casper-Suite-System-Requirements.pdf");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: The JSS could encounter scalability problems in the future");
-		display.append("\nLink to Scalability Article here");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: One or more policies could potentially have issues");
-		display.append("\nPolicies that are ongoing, triggered by a check in and include an update inventory\n" +
-				"can potentially cause issues. The database can grow in size relatively fast. Make sure these type of policies\n" +
-				"are not running to often.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: The tool has detected a large amount of extension attributes");
-		display.append("\nEvery time an update inventory occurs, the extension attributes must \ncalculate. This isn't a big deal for a number \nof EAs; but once the JSS contains a lot it starts to add up.\nThis is especially true if the extension attribute is a script.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: Given the JSS environment size, the check in frequency is a bit too frequent");
-		display.append("\n500 Devices: Any check in frequency is recommended.\n\n500-5,000 Devices: 15-30 Min check in time recommended\n\n5,000+: 30 Min check in time recommended.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: Printers with large driver packages detected");
-		display.append("\nOften times Xerox printers have driver packages over\n1GB in size. This requires us to update the SQL max packed size.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: The tool has identified one or more issues with your scripts");
-		display.append("This tool checks for multiple things that could be \nwrong with scripts. For example, using 'rm-rf' (discouraged) or referencing the old JSS binary location. \nPlease double check the scripts listed.");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: The JSS login password requirement is weak");
-		display.append("\n" + this.jssURL + "/passwordPolicy.html");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: Log In/Out hooks have not been configured");
-		display.append("\n" + this.jssURL + "/computerCheckIn.html");
-		display.append("\n================================================\n");
-		
-		display.append("Issue: Change Management is not enabled");
-		display.append("\n" + this.jssURL + "/changeManagement.html");
-		display.append("\n================================================\n");
 		
 		JFrame frame = new JFrame();
 		frame.add(middlePanel);
@@ -389,79 +347,42 @@ public class UserPrompt extends JFrame {
 		frame.setVisible(true);
 	}
 	
-	public void LoadXMLEditor() {
-		final JPanel middlePanel = new JPanel();
-		middlePanel.setBorder(new TitledBorder(new EtchedBorder(), "Edit Configuration XML File"));
-		final ConfigurationController con = new ConfigurationController(true);
-		String[] values = { "JSS URL", "JSS Username", "JSS Password", "Smart Group Criteria Count", "Extension Attribute Count" };
-		final JComboBox<String> options = new JComboBox<>(values);
+	public void loadXMLEditor() {
+		ConfigurationController con = new ConfigurationController(true);
 		
-		final JTextField value = new JTextField(con.getValue("healthcheck", "jss_url")[0]);
-		JButton update = new JButton("Update XML Value");
+		JTextField txtValue = new JTextField();
 		
-		middlePanel.add(options);
-		middlePanel.add(value);
-		middlePanel.add(update);
+		JComboBox<CSVElement> cmbOptions = new JComboBox<>(new CSVElement[] {
+				new CSVElement("JSS URL", "healthcheck", "jss_url"),
+				new CSVElement("JSS Username", "healthcheck", "jss_username"),
+				new CSVElement("JSS Password", "healthcheck", "jss_password"),
+				new CSVElement("Smart Group Criteria Count", "configurations,smart_groups", "criteria_count"),
+				new CSVElement("Extension Attribute Count", "configurations,extension_attributes", "computer")
+		});
+		
+		cmbOptions.addActionListener(e -> {
+			int index = cmbOptions.getSelectedIndex();
+			CSVElement element = cmbOptions.getItemAt(index);
+			
+			txtValue.setText(con.getValue(element.getCSVPaths(), element.getCSVKeys())[0]);
+		});
+		
+		cmbOptions.setSelectedIndex(0);
+		
+		// TODO: Not Implemented
+		JButton btnUpdate = new JButton("Update XML Value");
+		
+		JPanel pnlRoot = new JPanel();
+		pnlRoot.setBorder(new TitledBorder(new EtchedBorder(), "Edit Configuration XML File"));
+		pnlRoot.add(cmbOptions);
+		pnlRoot.add(txtValue);
+		pnlRoot.add(btnUpdate);
 		
 		JFrame frame = new JFrame();
-		frame.add(middlePanel);
+		frame.add(pnlRoot);
 		frame.pack();
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
-		
-		options.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				
-				JComboBox combo = (JComboBox) e.getSource();
-				String selected = (String) combo.getSelectedItem();
-				//con.updateXMLValue("jss_url", "test");
-				if (selected.equals("JSS URL")) {
-					value.setText(con.getValue("healthcheck", "jss_url")[0]);
-				} else if (selected.equals("JSS Username")) {
-					value.setText(con.getValue("healthcheck", "jss_username")[0]);
-				} else if (selected.equals("JSS Password")) {
-					value.setText(con.getValue("healthcheck", "jss_password")[0]);
-				} else if (selected.equals("Smart Group Criteria Count")) {
-					value.setText(con.getValue("configurations,smart_groups", "criteria_count")[0]);
-				} else if (selected.equals("Extension Attribute Count")) {
-					value.setText(con.getValue("configurations,extension_attributes", "computer")[0]);
-				}
-			}
-		});
-		
-		update.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				String selected = (String) options.getSelectedItem();
-				if (selected.equals("JSS URL")) {
-					con.updateXMLValue("jss_url", value.getText());
-				} else if (selected.equals("JSS Username")) {
-					con.updateXMLValue("jss_username", value.getText());
-				} else if (selected.equals("JSS Password")) {
-					con.updateXMLValue("jss_password", value.getText());
-				} else if (selected.equals("Smart Group Criteria Count")) {
-					con.updateXMLValue("smart_groups", value.getText());
-				} else if (selected.equals("Extension Attribute Count")) {
-					con.updateXMLValue("extension_attributes", value.getText());
-				}
-			}
-		});
-	}
-	
-	//Returns the JSS URL
-	public String getURL() {
-		return this.jssURL;
-	}
-	
-	//Returns the JSS Username
-	public String getUsername() {
-		return this.jssUsername;
-	}
-	
-	//Returns the JSS Password
-	public String getPassword() {
-		return this.jssPassword;
 	}
 	
 }

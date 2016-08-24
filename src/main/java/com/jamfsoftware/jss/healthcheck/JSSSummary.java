@@ -26,64 +26,48 @@ package com.jamfsoftware.jss.healthcheck;
  * #L%
  */
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.swing.*;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jamfsoftware.jss.healthcheck.util.EnvironmentUtil;
 
 public class JSSSummary {
 	
-	private String summary_string = "";
+	private static final Logger LOGGER = LoggerFactory.getLogger(JSSSummary.class);
+	
 	private String[][] summary;
 	private int password_info_index = 0;
 	private int clustered_index = 0;
 	private int activation_code_index = 0;
-	private int change_managment_index = 0;
+	private int change_management_index = 0;
 	private int tomcat_index = 0;
 	private int log_flushing_index = 0;
 	private int push_cert_index = 0;
 	private int login_logout_hooks_index = 0;
 	private int table_sizes = 0;
-	private boolean received401Error = false;
 	private int table_row_counts = 0;
 	
 	public JSSSummary(String summary) {
-		if (summary == null) {
-			if (EnvironmentUtil.isLinux()) {
-				System.out.println("The tool was unable to get the JSS Summary with this account. Please try again with another account that has read access and access to the JSS Summary. (HTTP 401)");
-			} else {
-				new JSSSummaryPasteHandler();
-				System.out.println("The tool was unable to get the JSS Summary with this account. Please try again with another account that has read access and access to the JSS Summary. (HTTP 401)");
+		if (summary == null || summary.contains("java.io.IOException: Server returned HTTP response code: 401 for URL:")) {
+			if (!EnvironmentUtil.isLinux()) {
+				showPasteError();
 			}
+			LOGGER.error("The tool was unable to get the JSS Summary with this account. Please try again with another account that has read access and access to the JSS Summary. (HTTP 401)");
 			System.exit(0);
 		}
-		this.summary_string = summary;
-		generateArrays(summary);
-		generateIndexes();
-	}
-	
-	public boolean get401ErrorStatus() {
-		return this.received401Error;
-	}
-	
-	public void setJSSSummary(String summary) {
-		this.summary_string = summary;
+		
 		generateArrays(summary);
 		generateIndexes();
 	}
 	
 	private void generateArrays(String summary) {
-		if (this.summary_string.contains("java.io.IOException: Server returned HTTP response code: 401 for URL:") || this.summary_string == null) {
-			if (EnvironmentUtil.isLinux()) {
-				System.out.println("The tool was unable to get the JSS Summary with this account. Please try again with another account that has read access and access to the JSS Summary. (HTTP 401)");
-			} else {
-				new JSSSummaryPasteHandler();
-				System.out.println("The tool was unable to get the JSS Summary with this account. Please try again with another account that has read access and access to the JSS Summary. (HTTP 401)");
-			}
-			this.received401Error = true;
-			System.exit(0);
-		}
 		String[] sections = summary.split("==========================================================================================");
 		String[][] sum = new String[sections.length][1];
 		for (int i = 0; i < sections.length; i++) {
@@ -92,37 +76,35 @@ public class JSSSummary {
 		this.summary = sum;
 	}
 	
+	private void showPasteError() {
+		JOptionPane.showMessageDialog(null, "Unable to get the JSS Summary with the supplied account. \nYou have encountered a JSS oddity that causes some accounts to not be able to access the summary.\nPlease create a new account with at least read privileges and try again.", "JSS Summary Error", JOptionPane.ERROR_MESSAGE);
+	}
+	
 	private void generateIndexes() {
+		String category;
 		for (int i = 0; i < this.summary.length; i++) {
-			if (this.summary[i].length > 0 && this.summary[i] != null) {
-				if (this.summary[i][0].equals("Password Policy")) {
+			if (this.summary[i] != null && this.summary[i].length > 0) {
+				category = this.summary[i][0];
+				
+				if ("Password Policy".equals(category)) {
 					password_info_index = i;
-				}
-				if (this.summary[i][0].equals("Clustering")) {
+				} else if ("Clustering".equals(category)) {
 					clustered_index = i;
-				}
-				if (this.summary[i][0].equals("Activation Code")) {
+				} else if ("Activation Code".equals(category)) {
 					activation_code_index = i;
-				}
-				if (this.summary[i][0].equals("Change Management")) {
-					change_managment_index = i;
-				}
-				if (this.summary[i][0].equals("Apache Tomcat Settings")) {
+				} else if ("Change Management".equals(category)) {
+					change_management_index = i;
+				} else if ("Apache Tomcat Settings".equals(category)) {
 					tomcat_index = i;
-				}
-				if (this.summary[i][0].equals("Log Flushing")) {
+				} else if ("Log Flushing".equals(category)) {
 					log_flushing_index = i;
-				}
-				if (this.summary[i][0].equals("Push Certificates")) {
+				} else if ("Push Certificates".equals(category)) {
 					push_cert_index = i;
-				}
-				if (this.summary[i][0].equals("Check-In")) {
+				} else if ("Check-In".equals(category)) {
 					login_logout_hooks_index = i;
-				}
-				if (this.summary[i][0].equals("Table sizes")) {
+				} else if ("Table sizes".equals(category)) {
 					table_sizes = i;
-				}
-				if (this.summary[i][0].equals("Table row counts")) {
+				} else if ("Table row counts".equals(category)) {
 					table_row_counts = i;
 				}
 			}
@@ -133,9 +115,7 @@ public class JSSSummary {
 		String[] el = this.summary[1][3].split("\t");
 		String check = "Web App Installed To";
 		String with_chars = el[1].substring(el[1].indexOf(check) + check.length(), el[1].length()).trim();
-		String sub1 = with_chars.replaceAll(":", "");
-		String sub2 = sub1.replaceAll("\\\\", "/");
-		return sub2;
+		return with_chars.replaceAll(":", "").replaceAll("\\\\", "/");
 	}
 	
 	public String getJavaVendor() {
@@ -150,24 +130,24 @@ public class JSSSummary {
 		String computers = "";
 		String mobile_devices = "";
 		String mobile_devices_denormalized = "";
-		for (int i = 0; i < el.length; i++) {
-			if (el[i].contains("computers")) {
-				if (el[i].contains("computers_denormalized")) {
+		for (String anEl : el) {
+			if (anEl.contains("computers")) {
+				if (anEl.contains("computers_denormalized")) {
 					String check = "computers_denormalized";
-					computers_denormalized = el[i].substring(el[i].indexOf(check) + check.length(), el[i].length()).trim().replace(".", "");
+					computers_denormalized = anEl.substring(anEl.indexOf(check) + check.length(), anEl.length()).trim().replace(".", "");
 				} else {
 					String check = "computers";
-					computers = el[i].substring(el[i].indexOf(check) + check.length(), el[i].length()).trim().replace(".", "");
+					computers = anEl.substring(anEl.indexOf(check) + check.length(), anEl.length()).trim().replace(".", "");
 				}
 			}
 			
-			if (el[i].contains("mobile_devices")) {
-				if (el[i].contains("mobile_devices_denormalized")) {
+			if (anEl.contains("mobile_devices")) {
+				if (anEl.contains("mobile_devices_denormalized")) {
 					String check = "mobile_devices_denormalized";
-					mobile_devices_denormalized = el[i].substring(el[i].indexOf(check) + check.length(), el[i].length()).trim().replace(".", "");
+					mobile_devices_denormalized = anEl.substring(anEl.indexOf(check) + check.length(), anEl.length()).trim().replace(".", "");
 				} else {
 					String check = "mobile_devices";
-					mobile_devices = el[i].substring(el[i].indexOf(check) + check.length(), el[i].length()).trim().replace(".", "");
+					mobile_devices = anEl.substring(anEl.indexOf(check) + check.length(), anEl.length()).trim().replace(".", "");
 				}
 			}
 			
@@ -246,7 +226,7 @@ public class JSSSummary {
 	
 	public String[] getChangeManagementInfo() {
 		String[] values = new String[2];
-		String[] el = this.summary[this.change_managment_index + 1][0].split("\t");
+		String[] el = this.summary[this.change_management_index + 1][0].split("\t");
 		String check = "Use Log File";
 		values[0] = el[1].substring(el[1].indexOf(check) + check.length(), el[1].length()).trim();
 		
@@ -259,8 +239,8 @@ public class JSSSummary {
 	public String[] getTomcatCert() {
 		String[] values = new String[2];
 		String[] el = this.summary[this.tomcat_index + 1][0].split("\t");
-		String check = "SSL Cert Issuer";
 		
+		String check = "SSL Cert Issuer";
 		values[0] = el[2].substring(el[2].indexOf(check) + check.length(), el[2].length()).replace(".", "").trim();
 		
 		check = "SSL Cert Expires";
@@ -270,14 +250,12 @@ public class JSSSummary {
 	}
 	
 	public String getLogFlushingInfo() {
-		String[] el = this.summary[this.log_flushing_index + 1][0].split("\t");
-		String check = "Time to Flush Logs Each Day";
-		return el[1].substring(el[1].indexOf(check) + check.length(), el[1].length()).trim();
+		return parseSummaryValue(this.log_flushing_index, "Time to Flush Logs Each Day");
 	}
 	
 	public String[] getPushCertInfo() {
 		String[] el;
-		String check = "";
+		String check;
 		String[] values = new String[2];
 		
 		if (this.summary[this.push_cert_index + 1][0].contains("MDM Push Notification Certificate")) {
@@ -304,46 +282,39 @@ public class JSSSummary {
 	}
 	
 	public Boolean loginLogoutHooksEnabled() {
-		String[] el = this.summary[this.login_logout_hooks_index + 1][1].split("\t");
-		String check = "Login/Logout Hooks";
-		return Boolean.parseBoolean(el[1].substring(el[1].indexOf(check) + check.length(), el[1].length()).trim());
-		
+		return Boolean.parseBoolean(parseSummaryValue(this.login_logout_hooks_index, "Login/Logout Hooks"));
 	}
 	
-	public ArrayList<String[]> getLargeMySQLTables() {
-		ArrayList<String[]> tables = new ArrayList<>();
+	public Map<String, Double> getLargeMySQLTables() {
 		String[] el = this.summary[this.table_sizes + 1][0].split("\t");
-		ArrayList<String[]> size_tracker = new ArrayList<>();
-		for (int i = 1; i < el.length; i++) {
-			String[] name_values = el[i].split(" ");
-			String name = name_values[0];
-			double size_in_mb = 0;
-			String[] vals = new String[2];
-			if (name_values[name_values.length - 1].contains("KB")) {
-				double size_in_kb = Double.parseDouble(name_values[name_values.length - 2]);
-				size_in_mb = size_in_kb * 0.001;
-			} else if (name_values[name_values.length - 1].contains("MB")) {
-				size_in_mb = Double.parseDouble(name_values[name_values.length - 2]);
-			} else if (name_values[name_values.length - 1].contains("GB")) {
-				double size_in_gb = Double.parseDouble(name_values[name_values.length - 2]);
-				size_in_mb = size_in_gb * 1000;
-			}
-			vals[0] = name;
-			vals[1] = Double.toString(size_in_mb);
-			size_tracker.add(vals);
-		}
-		Collections.sort(size_tracker, new Comparator<String[]>() {
-			@Override
-			public int compare(String[] o1, String[] o2) {
-				Double one = Double.parseDouble(o1[1]);
-				Double two = Double.parseDouble(o2[1]);
-				return one.compareTo(two);
-			}
-		});
-		for (int i = size_tracker.size() - 1; i > size_tracker.size() - 11; i--) {
-			tables.add(size_tracker.get(i));
-		}
-		return tables;
+		
+		return Stream.of(el)
+				.map(s -> s.split(" "))
+				.sorted((o1, o2) -> Objects.compare( // Descending Order
+						Double.valueOf(o2[o2.length - 2]),
+						Double.valueOf(o1[o1.length - 2]),
+						Double::compareTo
+				))
+				.limit(el.length - 11) // Not sure why -11 was chosen...
+				.collect(Collectors.toMap(
+						a -> a[0],
+						a -> {
+							double size = Double.parseDouble(a[a.length - 2]);
+							String unit = a[a.length - 1];
+							return unit.contains("KB") ? size * 0.001 : unit.contains("GB") ? size * 1000 : size;
+						}
+				));
+	}
+	
+	private String parseValue(String input, String key) {
+		return input.substring(
+				input.indexOf(key) + key.length(),
+				input.length()
+		).trim();
+	}
+	
+	private String parseSummaryValue(int index, String key) {
+		return parseValue(this.summary[index + 1][1].split("\t")[1].replaceAll("\\.", ""), key);
 	}
 	
 }

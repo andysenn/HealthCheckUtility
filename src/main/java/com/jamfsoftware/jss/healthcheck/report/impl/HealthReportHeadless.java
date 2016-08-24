@@ -1,4 +1,4 @@
-package com.jamfsoftware.jss.healthcheck.ui;
+package com.jamfsoftware.jss.healthcheck.report.impl;
 
 /*-
  * #%L
@@ -36,6 +36,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.jamfsoftware.jss.healthcheck.report.HealthReport;
 
 /**
  * HealthReportHeadless.java, Written January 2016, Jacob Schultz
@@ -44,7 +45,7 @@ import com.google.gson.JsonParser;
  * Issue items are denoted by a "!!!".
  */
 
-public class HealthReportHeadless {
+public class HealthReportHeadless extends HealthReport {
 	
 	//Class level JSON Objects for the three main sections.
 	private JsonObject healthcheck;
@@ -52,13 +53,15 @@ public class HealthReportHeadless {
 	private JsonObject data;
 	
 	//Default constructor that loads the JSON objects from the string.
-	public HealthReportHeadless(String JSON) {
+	public HealthReportHeadless(String json) {
+		super(json);
+		
 		JsonElement report = null;
 		try {
-			report = new JsonParser().parse(JSON);
+			report = new JsonParser().parse(json);
 		} catch (Exception e) {
 			System.out.println("Unable to parse JSON. Outputting generated JSON string for debugging:\n");
-			System.out.println(JSON.replace("\n", ""));
+			System.out.println(json.replace("\n", ""));
 			System.exit(0);
 		}
 		
@@ -68,7 +71,7 @@ public class HealthReportHeadless {
 	}
 	
 	//This calls the method to parse the JSON report, and then prints it. It then prompts to write to a file.
-	public void printReport() throws IOException {
+	public void printReport() {
 		String report = getString();
 		System.out.println(report);
 		shouldWriteToFile(report);
@@ -83,8 +86,8 @@ public class HealthReportHeadless {
 	 */
 	private void printGroupInformation(String output, String[][] array) {
 		if (array.length > 0) {
-			for (int i = 0; i < array.length; i++) {
-				output += "\n  Group: " + array[i][0] + " Nested Groups: " + array[i][1] + " Criteria Count: " + array[i][2];
+			for (String[] anArray : array) {
+				output += "\n  Group: " + anArray[0] + " Nested Groups: " + anArray[1] + " Criteria Count: " + anArray[2];
 			}
 		}
 	}
@@ -129,8 +132,8 @@ public class HealthReportHeadless {
 		String[][] sql_tables = extractArrayData(system, "largeSQLtables", "table_name", "table_size");
 		if (sql_tables.length > 0) {
 			output += ("\n  Top Ten Largest SQL tables: (Over 1GB should be investigated)");
-			for (int i = 0; i < sql_tables.length; i++) {
-				output += ("\n    Table Name:  " + sql_tables[i][0] + " Size: " + sql_tables[i][1]);
+			for (String[] sql_table : sql_tables) {
+				output += ("\n    Table Name:  " + sql_table[0] + " Size: " + sql_table[1]);
 			}
 			
 		}
@@ -162,7 +165,7 @@ public class HealthReportHeadless {
 		if (extractData(data, "password_strength", "spec_chars?").contains("true")) {
 			password_strength++;
 		}
-		String password_strength_desc = "";
+		String password_strength_desc;
 		if (password_strength == 4) {
 			password_strength_desc = "Excellent";
 		} else if (password_strength == 3 || password_strength == 2) {
@@ -202,8 +205,8 @@ public class HealthReportHeadless {
 		output += ("\nVPP Accounts: ");
 		String[][] vpp_accounts = extractArrayData(data, "vppaccounts", "name", "days_until_expire");
 		if (vpp_accounts.length > 0) {
-			for (int i = 0; i < vpp_accounts.length; i++) {
-				output += ("\n  Account Name: " + vpp_accounts[i][0] + " Expires in: " + vpp_accounts[i][1] + " Days.");
+			for (String[] vpp_account : vpp_accounts) {
+				output += ("\n  Account Name: " + vpp_account[0] + " Expires in: " + vpp_account[1] + " Days.");
 			}
 		}
 		
@@ -211,8 +214,8 @@ public class HealthReportHeadless {
 		output += ("\nNetwork Services Information: ");
 		output += ("\n  SMTP Server: " + extractData(data, "smtpserver", "server") + " Email: " + extractData(data, "smtpserver", "sender_email"));
 		String[][] ldap_servers = extractArrayData(data, "ldapservers", "name", "type", "address");
-		for (int i = 0; i < ldap_servers.length; i++) {
-			output += ("\n  LDAP Server: " + ldap_servers[i][0] + " (" + ldap_servers[i][1] + ") Address: " + ldap_servers[i][2]);
+		for (String[] ldap_server : ldap_servers) {
+			output += ("\n  LDAP Server: " + ldap_server[0] + " (" + ldap_server[1] + ") Address: " + ldap_server[2]);
 		}
 		String[][] printers = extractArrayData(data, "printer_warnings", "model");
 		if (printers.length > 0) {
@@ -239,8 +242,8 @@ public class HealthReportHeadless {
 		String[][] scripts = extractArrayData(data, "scripts_needing_update", "name");
 		if (scripts.length > 0) {
 			output += "\nScripts Needing Updates: ";
-			for (int i = 0; i < scripts.length; i++) {
-				output += "\n  Name: " + scripts[i][0];
+			for (String[] script : scripts) {
+				output += "\n  Name: " + script[0];
 				output_count++;
 			}
 			output += "\n!!!These scripts either reference the old binary location or use the 'rm-rf' (discouraged) command. They could also contain the 'jamf recon' command in the script. This can cause database bloat.";
@@ -249,8 +252,8 @@ public class HealthReportHeadless {
 		String[][] policies = extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger");
 		if (policies.length > 0) {
 			output += "\nPotential issues with Policies:";
-			for (int i = 0; i < policies.length; i++) {
-				output += "\n  Policy: " + policies[i][0] + " Ongoing with Inventory Update: " + policies[i][1] + " Checkin Trigger: " + policies[i][2];
+			for (String[] policy : policies) {
+				output += "\n  Policy: " + policy[0] + " Ongoing with Inventory Update: " + policy[1] + " Checkin Trigger: " + policy[2];
 			}
 			output_count++;
 			output += "\n!!!The above policies are triggered by a check in, contain an update inventory and are ongoing. This can cause network and database congestion.";
@@ -271,10 +274,8 @@ public class HealthReportHeadless {
 	 * 'user_specified_path/health_check_results.text'
 	 *
 	 * @param report string
-	 *
-	 * @throws IOException when the file can not be written
 	 */
-	private void shouldWriteToFile(String report) throws IOException {
+	private void shouldWriteToFile(String report) {
 		Scanner scanner = new Scanner(System.in);
 		System.out.println("\nIf you would like the results written to a file (recommended), type the full desired path (/Users/admin/Desktop), otherwise type 'n'");
 		String output_path = scanner.next();
@@ -295,23 +296,6 @@ public class HealthReportHeadless {
 		}
 	}
 	
-	//Two helper methods to extract data from JSON more simply.
-	public String extractData(JsonObject obj, String key) {
-		if (obj.get(key) != null) {
-			return obj.get(key).getAsString();
-		} else {
-			return "No Data Available";
-		}
-	}
-	
-	public String extractData(JsonObject obj, String key, String key2) {
-		if (obj.get(key).getAsJsonObject().get(key2) != null) {
-			return obj.get(key).getAsJsonObject().get(key2).getAsString();
-		} else {
-			return "No Data Available";
-		}
-	}
-	
 	/**
 	 * This method parses JSON and extracts data into a 2D String Array
 	 * Pass as many strings as should be included in the 2D array.
@@ -325,7 +309,7 @@ public class HealthReportHeadless {
 		for (int i = 0; i < items.size(); i++) {
 			JsonObject data = items.get(i).getAsJsonObject();
 			for (int j = 0; j < keys.length; j++) {
-				listOfObjects[i][j] = data.get(keys[j]).toString();
+				listOfObjects[i][j] = String.valueOf(data.get(keys[j]));
 			}
 		}
 		return listOfObjects;

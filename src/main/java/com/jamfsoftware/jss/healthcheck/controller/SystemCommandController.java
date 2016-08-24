@@ -35,26 +35,30 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 
-/*
-* SystemCommandController.java - Written by Jacob Schultz 12/2015
-* This class handles running system and MySQL commands on Mac/Windows/Linux.
-*/
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * SystemCommandController.java - Written by Jacob Schultz 12/2015
+ * This class handles running system and MySQL commands on Mac/Windows/Linux.
+ *
+ * @author Jacob Schultz
+ * @since 1.0
+ */
 public class SystemCommandController {
 	
-	//Default constructor - nothing to setup.
-	public SystemCommandController() {
-	}
+	private static final Logger LOGGER = LoggerFactory.getLogger(SystemCommandController.class);
 	
 	//Runs MySQL queries to get tables larger than 1GB
-	//Returns them in an String ArrrayList
-	public ArrayList<String> getLargeTableSizes(String MySQLUsername, String MySQLPassword) {
-		ArrayList<String> tables = new ArrayList<String>();
+	//Returns them in a String ArrayList
+	public Collection<String> getLargeTableSizes(String dbUsername, String dbPassword) {
+		Collection<String> tables = new ArrayList<>();
 		try {
 			Class.forName("com.mysql.jdbc.Driver");
 			//Assume the tool is being run on the server and they are using the JAMF Software table.
-			Connection conn = DriverManager.getConnection("jdbc:mysql://localhost", MySQLUsername, MySQLPassword);
+			Connection conn = DriverManager.getConnection("jdbc:mysql://localhost", dbUsername, dbPassword);
 			Statement stmt = conn.createStatement();
 			ResultSet result = stmt.executeQuery("SELECT table_name AS 'Table',  round(((data_length + index_length) / 1024 / 1024), 2) as tsize   FROM information_schema.TABLES  WHERE table_schema = 'jamfsoftware';");
 			while (result.next()) {
@@ -65,14 +69,14 @@ public class SystemCommandController {
 				}
 			}
 		} catch (Exception e) {
-			System.out.println(e);
+			LOGGER.error("", e);
 		}
 		//Print out the large tables, can be blank.
 		return tables;
 	}
 	
 	//Runs a MySQL command to get the total DB size. Returns 0 if the command fails.
-	public String getDatbaseSize(String MySQLUsername, String MySQLPassword) {
+	public String getDatabaseSize(String MySQLUsername, String MySQLPassword) {
 		try {
 			Class.forName("com.mysql.jdbc.Driver");
 			Connection conn = DriverManager.getConnection("jdbc:mysql://localhost", MySQLUsername, MySQLPassword);
@@ -81,7 +85,7 @@ public class SystemCommandController {
 			result.next();
 			return result.getString("db_size");
 		} catch (Exception e) {
-			System.out.println(e);
+			LOGGER.error("", e);
 			return "0";
 		}
 	}
@@ -133,6 +137,7 @@ public class SystemCommandController {
 	
 	public long[] getSpaceDetails() {
 		long[] values = new long[3];
+		
 		 /* Get a list of all filesystem roots on this system */
 		File[] roots = File.listRoots();
 		for (File root : roots) {

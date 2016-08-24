@@ -35,7 +35,7 @@ import com.jamfsoftware.jss.healthcheck.ui.component.URLLabel;
 import com.jamfsoftware.jss.healthcheck.util.StringConstants;
 
 public class PanelGenerator {
-	public String JSSURL = "";
+	public String jssUrl = "";
 	public boolean showGroupsHelp = false;
 	public boolean showLargeDatabase = false;
 	public boolean showScalability = false;
@@ -51,17 +51,14 @@ public class PanelGenerator {
 	public boolean isCloudJSS = false;
 	public boolean mobileDeviceTableCountMismatch = false;
 	public boolean computerDeviceTableCountMismatch = false;
-	public boolean mysql_osx_version_bug = false;
-	
-	public PanelGenerator() {
-	}
+	public boolean mysqlOSXVersionBug = false;
 	
 	/**
 	 * Generate an ImageIcon read from the images folder.
 	 *
 	 * @return an ImageIcon from the /images/png folder
 	 */
-	public ImageIcon generateIcon(String type) {
+	private ImageIcon generateIcon(String type) {
 		if (type.equals("")) {
 			return null;
 		} else if (type.equals("red")) {
@@ -243,7 +240,7 @@ public class PanelGenerator {
 	}
 	
 	/**
-	 * Generate the content panel for the JSS Env. Generates sepearte tables for the ldap, vpp accounts, and other
+	 * Generate the content panel for the JSS Env. Generates separate tables for the ldap, vpp accounts, and other
 	 * objects if they contain data.
 	 *
 	 * @return a JPanel with content, and icon
@@ -342,7 +339,7 @@ public class PanelGenerator {
 		}
 		
 		//Below conditions check for what links to show.
-		if (this.mysql_osx_version_bug) {
+		if (this.mysqlOSXVersionBug) {
 			container.add(new URLLabel("<html><u>The tool has detected a version of OSX/MySQL that is known</u><br><u>to cause issues. Click for a link to the bug report.</u><br></html>", "http://bugs.mysql.com/bug.php?id=71960"));
 			container.add(new JLabel("   "));
 		}
@@ -383,15 +380,15 @@ public class PanelGenerator {
 			container.add(new JLabel("   "));
 		}
 		if (this.strongerPassword) {
-			container.add(new URLLabel("<html><u>The JSS login password requirement is weak.</u><br><u>Consider updating it.</u></html>", this.JSSURL + "/passwordPolicy.html"));
+			container.add(new URLLabel("<html><u>The JSS login password requirement is weak.</u><br><u>Consider updating it.</u></html>", this.jssUrl + "/passwordPolicy.html"));
 			container.add(new JLabel("   "));
 		}
 		if (this.loginInOutHooks) {
-			container.add(new URLLabel("<html><u>Log In/Out hooks have not been configured.</u><br><u>Click to configure them.</u></html>", this.JSSURL + "/computerCheckIn.html"));
+			container.add(new URLLabel("<html><u>Log In/Out hooks have not been configured.</u><br><u>Click to configure them.</u></html>", this.jssUrl + "/computerCheckIn.html"));
 			container.add(new JLabel("   "));
 		}
 		if (this.showChange && (!this.isCloudJSS)) {
-			container.add(new URLLabel("<html><u>Change Management is not enabled.</u><br><u>Click to enable it.</u></html>", this.JSSURL + "/changeManagement.html"));
+			container.add(new URLLabel("<html><u>Change Management is not enabled.</u><br><u>Click to enable it.</u></html>", this.jssUrl + "/changeManagement.html"));
 			container.add(new JLabel("   "));
 		}
 		if (this.mobileDeviceTableCountMismatch) {

@@ -48,6 +48,7 @@ import javax.net.ssl.X509TrustManager;
  */
 
 public class TrustModifier {
+	
 	private static final TrustingHostnameVerifier
 			TRUSTING_HOSTNAME_VERIFIER = new TrustingHostnameVerifier();
 	private static SSLSocketFactory factory;
@@ -57,7 +58,7 @@ public class TrustModifier {
 	 * modify the trust settings if it is an HTTPS connection.
 	 */
 	public static void relaxHostChecking(HttpURLConnection conn)
-			throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
+			throws KeyManagementException, NoSuchAlgorithmException {
 		
 		if (conn instanceof HttpsURLConnection) {
 			HttpsURLConnection httpsConnection = (HttpsURLConnection) conn;
@@ -67,9 +68,8 @@ public class TrustModifier {
 		}
 	}
 	
-	static synchronized SSLSocketFactory
-	prepFactory(HttpsURLConnection httpsConnection)
-			throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException {
+	private static synchronized SSLSocketFactory prepFactory(HttpsURLConnection httpsConnection)
+			throws KeyManagementException, NoSuchAlgorithmException {
 		
 		if (factory == null) {
 			SSLContext ctx = SSLContext.getInstance("TLS");

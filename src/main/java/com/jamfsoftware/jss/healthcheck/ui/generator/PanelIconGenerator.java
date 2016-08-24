@@ -38,9 +38,6 @@ public class PanelIconGenerator {
 	public boolean showSystemRequirements = false;
 	public boolean showScalability = false;
 	
-	public PanelIconGenerator() {
-	}
-	
 	public String getGroupIconType(String object, int count) {
 		if (object.equals("groups")) {
 			if (count < 5) {
@@ -57,8 +54,8 @@ public class PanelIconGenerator {
 	public String getDatabaseInfoIconType(int total_devices, double database_size, int large_table_count) {
 		ConfigurationController config = new ConfigurationController(true);
 		//Check to make sure they gave a value.
-		String data_base_checker = "";
-		int data_base_size_recommened = 0;
+		String data_base_checker;
+		int data_base_size_recommend;
 		if (total_devices < 500) {
 			data_base_checker = config.getValue("configurations,jss_size,up_to_500", "db_size")[0];
 		} else if (total_devices < 1000 && total_devices > 500) {
@@ -70,26 +67,26 @@ public class PanelIconGenerator {
 		}
 		//They didn't provide a value, so set it high enough to (hopefully) not be triggered.
 		if (data_base_checker.equals("")) {
-			data_base_size_recommened = 900000000; //MB, This shouldn't be hit for a long, long, long time.
+			data_base_size_recommend = 900000000; //MB, This shouldn't be hit for a long, long, long time.
 			//They provided a value, so parse the int from XML
 		} else {
-			data_base_size_recommened = Integer.parseInt(data_base_checker);
+			data_base_size_recommend = Integer.parseInt(data_base_checker);
 		}
 		
 		if (total_devices < 500) {
-			if (database_size > data_base_size_recommened) {
+			if (database_size > data_base_size_recommend) {
 				return "yellow";
 			}
 		} else if (total_devices < 1000 && total_devices > 500) {
-			if (database_size > data_base_size_recommened) {
+			if (database_size > data_base_size_recommend) {
 				return "yellow";
 			}
 		} else if (total_devices < 2000 && total_devices > 1000) {
-			if (database_size > data_base_size_recommened) {
+			if (database_size > data_base_size_recommend) {
 				return "yellow";
 			}
 		} else {
-			if (database_size > data_base_size_recommened) {
+			if (database_size > data_base_size_recommend) {
 				return "yellow";
 			}
 		}
@@ -100,8 +97,8 @@ public class PanelIconGenerator {
 		double memory_in_mb = max_memory / 1000000;
 		ConfigurationController config = new ConfigurationController(true);
 		//Check to make sure they gave a value.
-		String server_mem_checker = "";
-		int server_mem_recommended = 0;
+		String server_mem_checker;
+		int server_mem_recommended;
 		if (total_devices < 500) {
 			server_mem_checker = config.getValue("configurations,jss_size,up_to_500", "tomcat_mem")[0];
 		} else if (total_devices < 1000 && total_devices > 500) {
@@ -170,8 +167,8 @@ public class PanelIconGenerator {
 		int bad_count = 0;
 		ConfigurationController config = new ConfigurationController(true);
 		//Check to make sure they gave a value.
-		String check_in_time_checker = "";
-		int checkin_time = 0;
+		String check_in_time_checker;
+		int checkin_time;
 		if (total_devices < 500) {
 			check_in_time_checker = config.getValue("configurations,jss_size,up_to_500", "checkin")[0];
 		} else if (total_devices < 1000 && total_devices > 500) {

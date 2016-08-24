@@ -144,6 +144,7 @@ public class HealthCheckUtility {
 				int returnVal = chooser.showOpenDialog(null);
 				if (returnVal == JFileChooser.APPROVE_OPTION) {
 					prefs.put("config_xml_path", chooser.getSelectedFile().getAbsolutePath());
+					prefs.put("configurationPath", chooser.getSelectedFile().getAbsolutePath());
 				} else {
 					System.exit(0);
 				}

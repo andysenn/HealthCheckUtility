@@ -35,6 +35,7 @@ import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
+import com.apple.eawt.Application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,8 +68,8 @@ public class UserPrompt extends JFrame {
 	//Opens the User Prompt JPanel
 	public UserPrompt() {
 		if (EnvironmentUtil.isMac()) {
-			//Add a menu bar, and set the icon on OSX.
-			//			Application.getApplication().setDockIconImage(new ImageIcon(this.getClass().getResource("/images/icon.png")).getImage());
+			// Add a menu bar, and set the icon on OSX.
+			// Application.getApplication().setDockIconImage(new ImageIcon(this.getClass().getResource("/images/icon.png")).getImage());
 			JMenuBar menu = new JMenuBar();
 			JMenu ops = new JMenu("Health Check Options");
 			JMenu load_json = new JMenu("Load Previous Test");

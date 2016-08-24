@@ -86,5 +86,18 @@ public class JSSConnectionTest {
 		}
 		return false;
 	}
+
+	public double getJSSVersion() {
+		try {
+			String xml_as_string = api.doGet(url + "/JSSResource/jssuser");
+			SAXBuilder sb = new SAXBuilder();
+			Document doc = sb.build(new ByteArrayInputStream(xml_as_string.getBytes("UTF-8")));
+			String result = doc.getRootElement().getChild("version").getValue();
+			return Double.parseDouble(result);
+		} catch (Exception e) {
+			LOGGER.error("", e);
+		}
+		return 0.0;
+	}
 	
 }

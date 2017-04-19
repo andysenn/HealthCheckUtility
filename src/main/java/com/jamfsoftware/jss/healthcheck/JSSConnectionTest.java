@@ -87,12 +87,24 @@ public class JSSConnectionTest {
 		return false;
 	}
 
+	// TODO: This will need to handle semver very shortly. For now, using 'major.minor'
 	public double getJSSVersion() {
 		try {
 			String xml_as_string = api.doGet(url + "/JSSResource/jssuser");
 			SAXBuilder sb = new SAXBuilder();
 			Document doc = sb.build(new ByteArrayInputStream(xml_as_string.getBytes("UTF-8")));
 			String result = doc.getRootElement().getChild("version").getValue();
+			
+			// Get the index of the first dot
+			int dot = result.indexOf('.');
+			if (dot >= 0) {
+				// The dot exists, so update dot to the index of a second dot, if present
+				dot = result.indexOf('.', dot + 1);
+				if (dot >= 0) {
+					result = result.substring(0, dot);
+				}
+			}
+			
 			return Double.parseDouble(result);
 		} catch (Exception e) {
 			LOGGER.error("", e);

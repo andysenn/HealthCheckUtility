@@ -126,11 +126,11 @@ public class UserPrompt extends JFrame {
 		//Create a new configuration controller to load values from the XML.
 		ConfigurationController con = new ConfigurationController(true);
 		//Load values from the XML. If blank, textfields will appear blank.
-		url.setText(con.getValue("healthcheck", "jss_url")[0]);
-		username.setText(con.getValue("healthcheck", "jss_username")[0]);
-		password.setText(con.getValue("healthcheck", "jss_password")[0]);
-		mysql_username.setText(con.getValue("healthcheck", "mysql_user")[0]);
-		mysql_password.setText(con.getValue("healthcheck", "mysql_password")[0]);
+		url.setText(con.getValue(null, "jss_url")[0]);
+		username.setText(con.getValue(null, "jss_username")[0]);
+		password.setText(con.getValue(null, "jss_password")[0]);
+		mysql_username.setText(con.getValue(null, "mysql_user")[0]);
+		mysql_password.setText(con.getValue(null, "mysql_password")[0]);
 		
 		//Add all of the elements to the frame
 		panel.add(url);
@@ -242,6 +242,7 @@ public class UserPrompt extends JFrame {
 		try {
 			HealthCheck healthCheck = new HealthCheck(jssURL, jssUsername, jssPassword, false);
 			LOGGER.info("Health Check Complete, Loading Summary..");
+			System.out.println(healthCheck.getJSONAsString());
 			new HealthReportAWT(healthCheck.getJSONAsString());
 			LOGGER.info("Report loaded.");
 			frame.setVisible(false);

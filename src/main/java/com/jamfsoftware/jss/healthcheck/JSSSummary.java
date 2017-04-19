@@ -26,6 +26,7 @@ package com.jamfsoftware.jss.healthcheck;
  * #L%
  */
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -287,8 +288,10 @@ public class JSSSummary {
 	
 	public Map<String, Double> getLargeMySQLTables() {
 		String[] el = this.summary[this.table_sizes + 1][0].split("\t");
+		System.out.println(Arrays.toString(el));
 		
 		return Stream.of(el)
+				.filter(s -> !s.isEmpty())
 				.map(s -> s.split(" "))
 				.sorted((o1, o2) -> Objects.compare( // Descending Order
 						Double.valueOf(o2[o2.length - 2]),

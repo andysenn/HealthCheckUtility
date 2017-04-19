@@ -107,9 +107,9 @@ public abstract class HealthReport {
 		Boolean show_system_info = true;
 		JsonObject system;
 		//Check if the check JSON contains system information and show/hide panels accordingly later.
-		system = ((JsonObject) report).get("system").getAsJsonObject();
+		system = healthcheck.get("system").getAsJsonObject();
 		
-		final JsonObject data = ((JsonObject) report).get("checkdata").getAsJsonObject();
+		final JsonObject data = healthcheck.get("checkdata").getAsJsonObject();
 		
 		this.jssUrl = extractData(healthcheck, "jss_url");
 		
@@ -203,17 +203,19 @@ public abstract class HealthReport {
 			}
 		}
 		
+		JsonObject summaryData = data.get("summarydata").getAsJsonObject();
+		
 		int password_strenth = 0;
-		if (extractData(data, "password_strength", "uppercase?").contains("true")) {
+		if (extractData(summaryData, "password_strength", "uppercase?").contains("true")) {
 			password_strenth++;
 		}
-		if (extractData(data, "password_strength", "lowercase?").contains("true")) {
+		if (extractData(summaryData, "password_strength", "lowercase?").contains("true")) {
 			password_strenth++;
 		}
-		if (extractData(data, "password_strength", "number?").contains("true")) {
+		if (extractData(summaryData, "password_strength", "number?").contains("true")) {
 			password_strenth++;
 		}
-		if (extractData(data, "password_strength", "spec_chars?").contains("true")) {
+		if (extractData(summaryData, "password_strength", "spec_chars?").contains("true")) {
 			password_strenth++;
 		}
 		String password_strength_desc;
@@ -278,12 +280,12 @@ public abstract class HealthReport {
 		String[][] policies = extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger");
 		String[][] scripts = extractArrayData(data, "scripts_needing_update", "name");
 		String[][] certs = {
-				{ "SSL Cert Issuer", extractData(data, "tomcat", "ssl_cert_issuer") },
-				{ "SLL Cert Expires", extractData(data, "tomcat", "cert_expires") },
+				{ "SSL Cert Issuer", extractData(summaryData, "tomcat", "ssl_cert_issuer") },
+				{ "SLL Cert Expires", extractData(summaryData, "tomcat", "cert_expires") },
 				{ "MDM Push Cert Expires", extractData(data, "push_cert_expirations", "mdm_push_cert") },
 				{ "Push Proxy Expires", extractData(data, "push_cert_expirations", "push_proxy") },
-				{ "Change Management Enabled?", extractData(data, "changemanagment", "isusinglogfile") },
-				{ "Log File Path:", extractData(data, "changemanagment", "logpath") } };
+				{ "Change Management Enabled?", extractData(summaryData, "changemanagment", "isusinglogfile") },
+				{ "Log File Path:", extractData(summaryData, "changemanagment", "logpath") } };
 		String policiesScriptsIconType = iconGen.getPoliciesAndScriptsIconType(extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger").length, extractArrayData(data, "scripts_needing_update", "name").length);
 		JPanel policies_scripts = panelGen.generateContentPanelPoliciesScripts("Policies, Scripts, Certs and Change", policies, scripts, printers, certs, "", "", policiesScriptsIconType);
 		if (extractArrayData(data, "policies_with_issues", "name", "ongoing", "checkin_trigger").length > 0) {
@@ -292,7 +294,7 @@ public abstract class HealthReport {
 		if (extractArrayData(data, "scripts_needing_update", "name").length > 0) {
 			this.showScripts = true;
 		}
-		if (extractData(data, "changemanagment", "isusinglogfile").contains("false")) {
+		if (extractData(summaryData, "changemanagment", "isusinglogfile").contains("false")) {
 			this.showChange = true;
 		}
 		this.showCheckinFreq = iconGen.showCheckinFreq;

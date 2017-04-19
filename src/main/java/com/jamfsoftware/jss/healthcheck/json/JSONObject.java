@@ -3,6 +3,9 @@ package com.jamfsoftware.jss.healthcheck.json;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.commons.lang3.StringUtils;
 
 public class JSONObject {
 	
@@ -38,10 +41,12 @@ public class JSONObject {
 	}
 	
 	public String toString(boolean includeName) {
-		return includeName ? "\"" + name + "\":{" : "{" +
-				String.join(",", arrays.stream().map(JSONArray::toString).collect(Collectors.toSet())) +
-				String.join(",", elements.stream().map(JSONElement::toString).collect(Collectors.toSet())) +
-				String.join(",", objects.stream().map(JSONObject::toString).collect(Collectors.toSet())) +
+		return (includeName ? "\"" + name + "\":{" : "{") +
+				Stream.of(arrays, elements, objects)
+						.flatMap(Collection::stream)
+						.map(Object::toString)
+						.filter(StringUtils::isNotBlank)
+						.collect(Collectors.joining(",")) +
 				"}";
 	}
 	

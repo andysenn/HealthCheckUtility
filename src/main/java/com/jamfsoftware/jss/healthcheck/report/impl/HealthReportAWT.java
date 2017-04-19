@@ -82,9 +82,9 @@ public class HealthReportAWT extends HealthReport {
 			Boolean show_system_info = true;
 			JsonObject system;
 			//Check if the check JSON contains system information and show/hide panels accordingly later.
-			system = ((JsonObject) report).get("system").getAsJsonObject();
+			system = healthcheck.get("system").getAsJsonObject();
 			
-			final JsonObject data = ((JsonObject) report).get("checkdata").getAsJsonObject();
+			final JsonObject data = healthcheck.get("checkdata").getAsJsonObject();
 			
 			HealthReportAWT.this.jssUrl = extractData(healthcheck, "jss_url");
 			

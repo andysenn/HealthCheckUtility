@@ -66,8 +66,8 @@ public class HealthReportHeadless extends HealthReport {
 		}
 		
 		this.healthcheck = ((JsonObject) report).get("healthcheck").getAsJsonObject();
-		this.system = ((JsonObject) report).get("system").getAsJsonObject();
-		this.data = ((JsonObject) report).get("checkdata").getAsJsonObject();
+		this.system = healthcheck.get("system").getAsJsonObject();
+		this.data = healthcheck.get("checkdata").getAsJsonObject();
 	}
 	
 	//This calls the method to parse the JSON report, and then prints it. It then prompts to write to a file.

@@ -187,7 +187,7 @@ public class ConfigurationController {
 	 * @return A String[] of values for all of the found keys
 	 */
 	public String[] getValue(String pathString, String keysString) {
-		String[] path = pathString.split(",");
+		String[] path = pathString == null ? new String[0] : pathString.split(",");
 		String[] keys = keysString.split(",");
 		String[] content = new String[keys.length];
 		

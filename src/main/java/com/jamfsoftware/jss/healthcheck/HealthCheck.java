@@ -135,7 +135,7 @@ public class HealthCheck {
 	 * Loop through all of the API Objects and perform checks
 	 */
 	private void performAPIChecks(JSONObject parent) {
-		JSONArray array = parent.addArray("checkdata");
+		JSONObject array = parent.addObject("checkdata");
 		for (String object : APIObjects) {
 			LOGGER.info("Checking API Object: " + object);
 			getAPIObject(object, array);
